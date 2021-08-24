@@ -1,4 +1,10 @@
-import { BIPS_BASE, EIP_1559_ACTIVATION_BLOCK } from '../constants'
+import {
+  BIPS_BASE,
+  EIP_1559_ACTIVATION_BLOCK,
+  HOP_ADDITIONAL_GAS,
+  PRICE_API_PREFIX,
+  SWAP_GAS_LIMIT,
+} from '../constants'
 import {
   ChainId,
   Currency,
@@ -9,10 +15,11 @@ import {
   Router,
   TradeType,
   Trade as V2Trade,
+  Token,
 } from '@sushiswap/sdk'
 import { arrayify, hexlify, splitSignature } from '@ethersproject/bytes'
 import { isAddress, isZero } from '../functions/validate'
-import { useFactoryContract, useRouterContract } from './useContract'
+import { useConveyorRouterContract, useFactoryContract, useRouterContract } from './useContract'
 
 import { ARCHER_RELAY_URI } from '../config/archer'
 import { ArcherRouter } from '../functions/archerRouter'
@@ -33,7 +40,13 @@ import useENS from './useENS'
 import { useMemo } from 'react'
 import { useTransactionAdder } from '../state/transactions/hooks'
 import useTransactionDeadline from './useTransactionDeadline'
-import { useUserArcherETHTip } from '../state/user/hooks'
+import { useUserArcherETHTip, useUserConveyorUseRelay } from '../state/user/hooks'
+import { CONVEYOR_RELAYER_URI } from '../config/conveyor'
+import { useSwapState } from '../state/swap/hooks'
+import { WrappedTokenInfo } from '../state/lists/wrappedTokenInfo'
+import { BigNumber as JSBigNumber } from 'bignumber.js'
+import { Interface } from '@ethersproject/abi'
+import { CONVEYOR_V2_ROUTER_ADDRESS } from '../constants/abis/conveyor-v2'
 
 export enum SwapCallbackState {
   INVALID,
@@ -220,7 +233,7 @@ export function useSwapCallback(
   archerRelayDeadline?: number // deadline to use for archer relay -- set to undefined for no relay
 ): {
   state: SwapCallbackState
-  callback: null | (() => Promise<string>)
+  callback: null | (() => Promise<string | { txHash: string; preventedLoss: string | undefined }>)
   error: string | null
 } {
   const { account, chainId, library } = useActiveWeb3React()
@@ -243,6 +256,12 @@ export function useSwapCallback(
   const recipient = recipientAddressOrName === null ? account : recipientAddress
 
   const [archerETHTip] = useUserArcherETHTip()
+
+  const [userConveyorUseRelay] = useUserConveyorUseRelay()
+
+  const router = useConveyorRouterContract()
+
+  const transactionDeadline = useTransactionDeadline()
 
   return useMemo(() => {
     if (!trade || !library || !account || !chainId) {
@@ -268,7 +287,7 @@ export function useSwapCallback(
       }
     }
 
-    return {
+    const defaultSushiCallback = {
       state: SwapCallbackState.VALID,
       callback: async function onSwap(): Promise<string> {
         const estimatedCalls: SwapCallEstimate[] = await Promise.all(
@@ -558,5 +577,288 @@ export function useSwapCallback(
       },
       error: null,
     }
-  }, [trade, library, account, chainId, recipient, recipientAddressOrName, swapCalls, useArcher, addTransaction])
+
+    const conveyorCallback = {
+      state: SwapCallbackState.VALID,
+      // return a transaction hash or return the error
+      callback: async (): Promise<{ txHash: string; preventedLoss: string | undefined }> => {
+        /**
+         * Parse amount of input and output to their raw format
+         * @param amounts Array of CurrencyAmounts
+         * @returns Array of raw amounts
+         */
+        const getRawAmounts = (amounts: CurrencyAmount<Currency>[]): string[] => {
+          const input = amounts[0].toFixed(amounts[0].currency.decimals)
+          const output = amounts[1].toFixed(amounts[1].currency.decimals)
+
+          return [input, output].map((amount, index) => {
+            const dotIndex = amount.indexOf('.')
+            if (dotIndex === -1) {
+              if (index === 0) {
+                throw new Error('Failed to parse input amount to its raw format')
+              } else if (index === 1) {
+                throw new Error('Failed to parse output amount to its raw format')
+              }
+            }
+
+            return `${amount.substring(0, dotIndex)}${amount.substring(dotIndex + 1)}`
+          })
+        }
+
+        const user = await router.signer.getAddress()
+        // console.log('user: ', { user, account, userEqualsAccount: user === account })
+        if (user !== account) {
+          throw new Error('Wrong sender')
+        }
+
+        const methodName =
+          trade.tradeType === TradeType.EXACT_INPUT ? 'swapExactTokensForTokens' : 'swapTokensForExactTokens'
+        // console.log('methodName: ', methodName)
+        if (methodName !== 'swapExactTokensForTokens') {
+          if (methodName === 'swapTokensForExactTokens') {
+            throw new Error('Does not support setting output amount')
+          } else {
+            throw new Error('Can only between ERC-20 tokens')
+          }
+        }
+
+        const [amount0, amount1] = getRawAmounts([trade.inputAmount, trade.outputAmount])
+        // console.log('amount0, amount1: ', amount0, amount1)
+
+        const path = trade.route.path.map((r: Token | WrappedTokenInfo) =>
+          r instanceof Token ? r.address : r.tokenInfo.address
+        )
+        // console.log('path: ', path)
+
+        // We don't need trusted pair anymore in v2
+        // for (var i = 0; i < path.length - 1; i++) {
+        //   const tokenA = new Token(chainId, path[i], trade.route.path[i].decimals)
+        //   const tokenB = new Token(chainId, path[i + 1], trade.route.path[i + 1].decimals)
+        //   const pairAddress = Pair.getAddress(tokenA, tokenB)
+        //   var isTrustedPair: boolean = false
+        //   if (chainId === ChainId.BSCMAIN || chainId === ChainId.BSCTEST) {
+        //     isTrustedPair = await controller.isTrustedPancakeV2Pair(pairAddress)
+        //   } else {
+        //     isTrustedPair = await controller.isTrustedPair(pairAddress)
+        //   }
+        //   if (!isTrustedPair) {
+        //     throw new Error('Not trusted pair!')
+        //   }
+        // }
+
+        const nonce: BigNumber = await router.nonces(account)
+        // console.log('nonce: ', nonce)
+
+        const gasPrice = await library?.getGasPrice()
+        const gasLimit = SWAP_GAS_LIMIT + (path.length - 2) * HOP_ADDITIONAL_GAS
+        const feeOnTokenA = await calculateConveyorFeeOnToken(
+          chainId,
+          path[0],
+          trade.inputAmount.currency.decimals,
+          gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
+        )
+        // console.log('fee: ', {gasPrice, gasLimit, feeOnTokenA})
+
+        const EIP712Domain = [
+          { name: 'name', type: 'string' },
+          { name: 'version', type: 'string' },
+          { name: 'chainId', type: 'uint256' },
+          { name: 'verifyingContract', type: 'address' },
+        ]
+
+        const Swap = [
+          { name: 'amount0', type: 'uint256' },
+          { name: 'amount1', type: 'uint256' },
+          { name: 'path', type: 'address[]' },
+          { name: 'user', type: 'address' },
+          { name: 'nonce', type: 'uint256' },
+          { name: 'deadline', type: 'uint256' },
+          { name: 'feeAmount', type: 'uint256' },
+          { name: 'feeToken', type: 'address' },
+        ]
+
+        const domain = {
+          name: 'ConveyorV2',
+          version: '1',
+          chainId: BigNumber.from(chainId).toHexString(),
+          verifyingContract: CONVEYOR_V2_ROUTER_ADDRESS,
+        }
+
+        const message = {
+          amount0: BigNumber.from(amount0).toHexString(),
+          amount1: BigNumber.from(amount1).toHexString(),
+          path,
+          user,
+          nonce: nonce.toHexString(),
+          deadline: transactionDeadline.toHexString(),
+          feeAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+          feeToken: path[0],
+        }
+
+        const EIP712Msg = {
+          types: {
+            EIP712Domain,
+            Swap,
+          },
+          domain,
+          primaryType: 'Swap',
+          message,
+        }
+        // console.log('EIP712Msg: ', EIP712Msg)
+
+        const data = JSON.stringify(EIP712Msg)
+        // console.log('data: ', data)
+
+        const signature = await library.send('eth_signTypedData_v4', [user, data])
+        const { v, r, s } = splitSignature(signature)
+
+        const params = [chainId, EIP712Msg, v.toString(), r, s]
+        // console.log('params:', params)
+
+        const jsonrpcRequest = {
+          jsonrpc: '2.0',
+          method: '/v2/' + methodName,
+          id: 1,
+          params,
+        }
+        // console.log('jsonrpcRequest: ', jsonrpcRequest)
+
+        const requestOptions = {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(jsonrpcRequest),
+        }
+
+        const response = await fetch(CONVEYOR_RELAYER_URI[chainId]!, requestOptions)
+        const { result } = await response.json()
+
+        // We don't need gToken anymore in v2
+        // const originalInputTokenSymbol = trade.inputAmount.currency.symbol?.startsWith('g')
+        //   ? trade.inputAmount.currency.symbol.substring(1)
+        //   : trade.inputAmount.currency.symbol
+        // const originalOutputTokenSymbol = trade.outputAmount.currency.symbol?.startsWith('g')
+        //   ? trade.outputAmount.currency.symbol.substring(1)
+        //   : trade.outputAmount.currency.symbol
+        const originalInputTokenSymbol = trade.inputAmount.currency.symbol
+        const originalOutputTokenSymbol = trade.outputAmount.currency.symbol
+
+        if (result.success === true) {
+          addTransaction(result.txnHash, {
+            summary: `Swap ${trade.inputAmount.toSignificant(
+              3
+            )} ${originalInputTokenSymbol} to ${originalOutputTokenSymbol}`,
+          })
+
+          let receipt = null
+          while (receipt === null) {
+            receipt = await library.getTransactionReceipt(result.txnHash)
+          }
+
+          const transactionLogs = receipt.logs
+          let savedLoss: JSBigNumber | undefined = undefined
+          let lastUsedLogIndex: number = -1
+          for (let log of transactionLogs) {
+            //if this trade is a multihop trade, we should use the last SWAP event data
+            if (
+              log.topics[0] === '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822' &&
+              log.logIndex > lastUsedLogIndex
+            ) {
+              const iface = new Interface([
+                'event Swap(address indexed sender,uint amount0In,uint amount1In,uint amount0Out,uint amount1Out,address indexed to)',
+              ])
+              const logDescription = iface.parseLog(log)
+              const amount1Out: JSBigNumber = new JSBigNumber(logDescription.args.amount1Out.toString())
+              const amount0Out: JSBigNumber = new JSBigNumber(logDescription.args.amount0Out.toString())
+              const amountOut = amount1Out.eq(0) ? amount0Out : amount1Out
+              const minAmountOut: JSBigNumber = new JSBigNumber(amount1 as string, 16)
+              savedLoss = amountOut.minus(minAmountOut)
+              lastUsedLogIndex = log.logIndex
+            }
+          }
+
+          let preventedLoss: string | undefined = undefined
+          if (savedLoss !== undefined) {
+            preventedLoss =
+              savedLoss.div(new JSBigNumber(10).pow(trade.outputAmount.currency.decimals)).toPrecision(6) +
+              ' ' +
+              originalOutputTokenSymbol
+          }
+          return { txHash: result.txnHash, preventedLoss: preventedLoss }
+        } else {
+          throw new Error(result.errorMessage)
+        }
+      },
+      error: null,
+    }
+
+    return !userConveyorUseRelay ? defaultSushiCallback : conveyorCallback
+  }, [
+    trade,
+    library,
+    account,
+    chainId,
+    recipient,
+    recipientAddressOrName,
+    swapCalls,
+    useArcher,
+    userConveyorUseRelay,
+    addTransaction,
+  ])
+}
+
+export async function calculateConveyorFeeOnToken(
+  chainId: ChainId | undefined,
+  address: string | undefined,
+  decimals: number,
+  nativeTokenAmount: BigNumber | undefined
+): Promise<JSBigNumber> {
+  if (chainId === undefined) {
+    throw Error('Please connect to networks')
+  }
+  if (nativeTokenAmount === undefined) {
+    throw Error('Fee on native token unknown')
+  }
+  if (address === undefined) {
+    throw Error('Token address unknown')
+  }
+
+  if (chainId === ChainId.BSC) {
+    return await calculateBSCFee(chainId, address, decimals, nativeTokenAmount, 'bnb', 18)
+  } else {
+    throw Error('Unsupported Network')
+  }
+}
+
+async function calculateBSCFee(
+  chainId: ChainId,
+  address: string,
+  decimals: number,
+  nativeTokenAmount: BigNumber,
+  baseCurrency: string,
+  baseCurrencyDecimal: number
+): Promise<JSBigNumber> {
+  const priceApiPrefix = PRICE_API_PREFIX[chainId]
+  if (priceApiPrefix === undefined) {
+    throw Error('Unable to calculate fee')
+  }
+
+  const response = await fetch(priceApiPrefix + 'contract_addresses=' + address + '&vs_currencies=' + baseCurrency)
+  const responseMap = await response.json()
+  const data = responseMap[address.toLowerCase()]
+  var baseRatio
+  if (baseCurrency === 'bnb') {
+    const { bnb } = data
+    baseRatio = bnb
+  } else if (baseCurrency === 'eth') {
+    const { eth } = data
+    baseRatio = eth
+  }
+  const price = new JSBigNumber(baseRatio)
+    .multipliedBy(new JSBigNumber(10).pow(baseCurrencyDecimal))
+    .div(new JSBigNumber(10).pow(decimals))
+  // const priceBNB = parseFloat(price_BNB) * Math.pow(10, 18) / Math.pow(10, decimals)
+  const feeInToken = new JSBigNumber(nativeTokenAmount.toString()).div(price)
+  return feeInToken
 }

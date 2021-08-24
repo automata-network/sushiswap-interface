@@ -24,6 +24,7 @@ import {
   ARGENT_WALLET_DETECTOR_ABI,
   ARGENT_WALLET_DETECTOR_MAINNET_ADDRESS,
 } from '../constants/abis/argent-wallet-detector'
+import { CONVEYOR_V2_ROUTER_ABI, CONVEYOR_V2_ROUTER_ADDRESS } from '../constants/abis/conveyor-v2'
 
 import ARCHER_ROUTER_ABI from '../constants/abis/archer-router.json'
 import BAR_ABI from '../constants/abis/bar.json'
@@ -219,4 +220,19 @@ export function useInariContract(withSignerIfPossible?: boolean): Contract | nul
 
 export function useZenkoContract(withSignerIfPossible?: boolean): Contract | null {
   return useContract('0xa8f676c49f91655ab3b7c3ea2b73bb3088b2bc1f', ZENKO_ABI, withSignerIfPossible)
+}
+
+/**
+ * Interact with Automata Conveyor v2 contract. Use chainId if later we move
+ * the address into customized sushiswap-sdk.
+ * @see `useRouterContract`
+ * @returns Contract. Null if the contract is not found.
+ */
+export function useConveyorRouterContract(): Contract | null {
+  // const { chainId } = useActiveWeb3React()
+
+  const abi = CONVEYOR_V2_ROUTER_ABI
+  const address = CONVEYOR_V2_ROUTER_ADDRESS
+
+  return useContract(address, abi)
 }

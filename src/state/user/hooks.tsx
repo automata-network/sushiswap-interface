@@ -18,6 +18,7 @@ import {
   updateUserExpertMode,
   updateUserSingleHopOnly,
   updateUserSlippageTolerance,
+  updateUserConveyorUseRelay,
 } from './actions'
 import { shallowEqual, useDispatch, useSelector } from 'react-redux'
 import { useAppDispatch, useAppSelector } from '../hooks'
@@ -399,4 +400,21 @@ export function useUserSlippageToleranceWithDefault(defaultSlippageTolerance: Pe
     () => (allowedSlippage === 'auto' ? defaultSlippageTolerance : allowedSlippage),
     [allowedSlippage, defaultSlippageTolerance]
   )
+}
+
+export function useUserConveyorUseRelay(): [boolean, (newUseRelay: boolean) => void] {
+  const dispatch = useAppDispatch()
+
+  const useRelay = useSelector<AppState, AppState['user']['userConveyorUseRelay']>(
+    (state) => state.user.userConveyorUseRelay
+  )
+
+  const setUseRelay = useCallback(
+    (newUseRelay: boolean) => {
+      dispatch(updateUserConveyorUseRelay({ userConveyorUseRelay: newUseRelay }))
+    },
+    [dispatch]
+  )
+
+  return [useRelay, setUseRelay]
 }

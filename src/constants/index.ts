@@ -66,3 +66,10 @@ export const EIP_1559_ACTIVATION_BLOCK: { [chainId in ChainId]?: number } = {
   [ChainId.GÖRLI]: 5062605,
   [ChainId.RINKEBY]: 8897988,
 }
+
+// Conveyor specific constants
+export const SWAP_GAS_LIMIT = 410000
+export const HOP_ADDITIONAL_GAS = 140000
+export const PRICE_API_PREFIX: { [chainId in ChainId]?: string } = {
+  [ChainId.BSC]: 'https://api.coingecko.com/api/v3/simple/token_price/binance-smart-chain?',
+}

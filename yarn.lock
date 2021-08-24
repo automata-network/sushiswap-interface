@@ -2613,10 +2613,10 @@
   dependencies:
     "@sushiswap/default-token-list" "^11.3.0"
 
-"@sushiswap/sdk@5.0.0-canary.51":
-  version "5.0.0-canary.51"
-  resolved "https://registry.yarnpkg.com/@sushiswap/sdk/-/sdk-5.0.0-canary.51.tgz#c9c3a0b9a526a0d9cfb06bb464d3ba0a7797991b"
-  integrity sha512-OqObDtSLp/SNSCvZsFIsyrg8Nh2oBDTwP65zswHRTXo+VtYLTduJ8PTXYm8cZHHFLv+YwS2lvVHp71Rng3/Weg==
+"@sushiswap/sdk@^5.0.0-canary.52":
+  version "5.0.0-canary.52"
+  resolved "https://registry.yarnpkg.com/@sushiswap/sdk/-/sdk-5.0.0-canary.52.tgz#b6b2fa1b0d6233fb97ece6e2794e7959531cb650"
+  integrity sha512-2/UMjwhKjFTgPE2wiKOEyiDhwfgwPX7lI76nvAWIvTc8HQA0Yn08pU4fjjBhDGNCbMiXiMTAWNA2s9braqipQA==
   dependencies:
     big.js "^6.1.0"
     decimal.js-light "^2.5.0"
@@ -10125,7 +10125,12 @@ js-yaml@^3.13.1:
     argparse "^1.0.7"
     esprima "^4.0.0"
 
-jsbi@^3.1.0, jsbi@^3.1.5:
+jsbi@^3.1.0:
+  version "3.2.1"
+  resolved "https://registry.yarnpkg.com/jsbi/-/jsbi-3.2.1.tgz#513a8f404abb9d5ba725f5265265b688215ee9f0"
+  integrity sha512-NzcT09wuJReIO829enrY3yRdHFz+ciVIq01PCGPkHlwIv5Dj9v2F4daQ4akwuPHf6xO/oii4Jrd3BsPepOxXrg==
+
+jsbi@^3.1.5:
   version "3.1.6"
   resolved "https://registry.yarnpkg.com/jsbi/-/jsbi-3.1.6.tgz#572431b0ff4b9c0f5f4b41e214dba76a734e676b"
   integrity sha512-CGjq13y28FrBA5mAU+rsfHaVKEF9jrw3PhzZpIzTeMiPsT0XRDAS6E7QS8/ZTmFQUtl2MDJsxKQoYJzAhF7B1w==

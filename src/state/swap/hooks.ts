@@ -127,7 +127,10 @@ function involvesAddress(trade: V2Trade<Currency, Currency, TradeType>, checksum
 }
 
 // from the current swap inputs, compute the best trade and return it.
-export function useDerivedSwapInfo(doArcher = false): {
+export function useDerivedSwapInfo(
+  doArcher = false,
+  doConveyor = false
+): {
   currencies: { [field in Field]?: Currency }
   currencyBalances: { [field in Field]?: CurrencyAmount<Currency> }
   parsedAmount: CurrencyAmount<Currency> | undefined
@@ -226,6 +229,11 @@ export function useDerivedSwapInfo(doArcher = false): {
   const [userGasEstimate, setUserGasEstimate] = useUserArcherGasEstimate()
   const [userGasPrice] = useUserArcherGasPrice()
   const [userTipManualOverride, setUserTipManualOverride] = useUserArcherTipManualOverride()
+
+  if (doConveyor) {
+    // Set all Conveyor-specific steps here
+    console.log('using conveyor')
+  }
 
   useEffect(() => {
     if (doArcher) {

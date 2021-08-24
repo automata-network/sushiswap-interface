@@ -5,6 +5,7 @@ import {
   useUserArcherUseRelay,
   useUserSingleHopOnly,
   useUserTransactionTTL,
+  useUserConveyorUseRelay,
 } from '../../state/user/hooks'
 import { useModalOpen, useToggleSettingsMenu } from '../../state/application/hooks'
 
@@ -42,6 +43,8 @@ export default function SettingsTab({ placeholderSlippage }: { placeholderSlippa
   const [ttl, setTtl] = useUserTransactionTTL()
 
   const [userUseArcher, setUserUseArcher] = useUserArcherUseRelay()
+
+  const [userUseConveyor, setUserUseConveyor] = useUserConveyorUseRelay()
 
   return (
     <div className="relative flex" ref={node}>
@@ -122,6 +125,25 @@ export default function SettingsTab({ placeholderSlippage }: { placeholderSlippa
                 />
               </div>
             )} */}
+            {chainId == ChainId.BSC && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Typography variant="sm" className="text-primary">
+                    {i18n._(t`MEV Protection by Automata`)}
+                  </Typography>
+                  <QuestionHelper
+                    text={i18n._(
+                      t`Send transaction through Automata Conveyor to avoid front-running and sandwich attacks`
+                    )}
+                  />
+                </div>
+                <Toggle
+                  id="toggle-use-conveyor"
+                  isActive={userUseConveyor}
+                  toggle={() => setUserUseConveyor(!userUseConveyor)}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

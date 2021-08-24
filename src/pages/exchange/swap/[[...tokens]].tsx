@@ -29,6 +29,7 @@ import {
   useUserSingleHopOnly,
   useUserSlippageTolerance,
   useUserTransactionTTL,
+  useUserConveyorUseRelay,
 } from '../../../state/user/hooks'
 import { useNetworkModalToggle, useToggleSettingsMenu, useWalletModalToggle } from '../../../state/application/hooks'
 import useWrapCallback, { WrapType } from '../../../hooks/useWrapCallback'
@@ -74,6 +75,8 @@ import { useRouter } from 'next/router'
 import { useSwapCallback } from '../../../hooks/useSwapCallback'
 import { useUSDCValue } from '../../../hooks/useUSDCPrice'
 import { warningSeverity } from '../../../functions/prices'
+
+import { CONVEYOR_RELAYER_URI } from '../../../config/conveyor'
 
 export default function Swap() {
   const { i18n } = useLingui()
@@ -127,6 +130,11 @@ export default function Swap() {
   // const doArcher = archerRelay !== undefined && useArcher
   const doArcher = undefined
 
+  // Conveyor
+  const [useConveyor] = useUserConveyorUseRelay()
+  const conveyorRelay = chainId ? CONVEYOR_RELAYER_URI?.[chainId] : undefined
+  const doConveyor = typeof conveyorRelay !== 'undefined' && useConveyor
+
   // swap state
   const { independentField, typedValue, recipient } = useSwapState()
   const {
@@ -136,7 +144,7 @@ export default function Swap() {
     currencies,
     inputError: swapInputError,
     allowedSlippage,
-  } = useDerivedSwapInfo(doArcher)
+  } = useDerivedSwapInfo(doArcher, doConveyor)
 
   const {
     wrapType,
