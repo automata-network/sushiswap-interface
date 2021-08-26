@@ -1,6 +1,6 @@
 import Container from '../../components/Container'
 import Head from 'next/head'
-import Menu from '../../features/analytics/AnalyticsMenu'
+// import Menu from '../../features/analytics/AnalyticsMenu'
 
 export default function Analytics() {
   return (
@@ -11,7 +11,7 @@ export default function Analytics() {
       </Head>
 
       <div className="sticky top-0 hidden lg:block md:col-span-1" style={{ maxHeight: '40rem' }}>
-        <Menu />
+        {/* <Menu /> */}
       </div>
     </Container>
   )
