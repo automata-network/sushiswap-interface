@@ -12,6 +12,7 @@ yarn-error.log*
 .idea/
 .vercel
 .next
+out
 
 public/sw.js
 public/sw.js.map
