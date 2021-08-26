@@ -2,13 +2,17 @@ import { ApprovalState, useApproveCallback } from '../../../hooks/useApproveCall
 import { AutoRow, RowBetween } from '../../../components/Row'
 import Button, { ButtonError } from '../../../components/Button'
 import { Currency, CurrencyAmount, Percent, WNATIVE, currencyEquals } from '@sushiswap/sdk'
-import { ONE_BIPS, ZERO_PERCENT } from '../../../constants'
+import { ONE_BIPS, ZERO_PERCENT, CREATE_PAIR_GAS_LIMIT, ADD_LIQUIDITY_GAS_LIMIT } from '../../../constants'
 import React, { useCallback, useState } from 'react'
 import TransactionConfirmationModal, { ConfirmationModalContent } from '../../../modals/TransactionConfirmationModal'
 import { calculateGasMargin, calculateSlippageAmount } from '../../../functions/trade'
 import { currencyId, maxAmountSpend } from '../../../functions/currency'
 import { useDerivedMintInfo, useMintActionHandlers, useMintState } from '../../../state/mint/hooks'
-import { useExpertModeManager, useUserSlippageToleranceWithDefault } from '../../../state/user/hooks'
+import {
+  useExpertModeManager,
+  useUserConveyorUseRelay,
+  useUserSlippageToleranceWithDefault,
+} from '../../../state/user/hooks'
 
 import Alert from '../../../components/Alert'
 import { AutoColumn } from '../../../components/Column'
@@ -40,10 +44,14 @@ import { useCurrency } from '../../../hooks/Tokens'
 import { useIsSwapUnsupported } from '../../../hooks/useIsSwapUnsupported'
 import { useLingui } from '@lingui/react'
 import { useRouter } from 'next/router'
-import { useRouterContract } from '../../../hooks'
+import { useConveyorRouterContract, useRouterContract } from '../../../hooks'
 import { useTransactionAdder } from '../../../state/transactions/hooks'
 import useTransactionDeadline from '../../../hooks/useTransactionDeadline'
 import { useWalletModalToggle } from '../../../state/application/hooks'
+import { CONVEYOR_V2_ROUTER_ADDRESS } from '../../../constants/abis/conveyor-v2'
+import { calculateConveyorFeeOnToken } from '../../../functions/conveyorFee'
+import { splitSignature } from '@ethersproject/bytes'
+import { CONVEYOR_RELAYER_URI } from '../../../config/conveyor'
 
 const DEFAULT_ADD_V2_SLIPPAGE_TOLERANCE = new Percent(50, 10_000)
 
@@ -127,11 +135,21 @@ export default function Add() {
     {}
   )
 
+  const [userConveyorUseRelay] = useUserConveyorUseRelay()
+
   const routerContract = useRouterContract()
 
+  const conveyorRouterContract = useConveyorRouterContract()
+
   // check whether the user has approved the router on the tokens
-  const [approvalA, approveACallback] = useApproveCallback(parsedAmounts[Field.CURRENCY_A], routerContract?.address)
-  const [approvalB, approveBCallback] = useApproveCallback(parsedAmounts[Field.CURRENCY_B], routerContract?.address)
+  const [approvalA, approveACallback] = useApproveCallback(
+    parsedAmounts[Field.CURRENCY_A],
+    !userConveyorUseRelay ? routerContract?.address : CONVEYOR_V2_ROUTER_ADDRESS
+  )
+  const [approvalB, approveBCallback] = useApproveCallback(
+    parsedAmounts[Field.CURRENCY_B],
+    !userConveyorUseRelay ? routerContract?.address : CONVEYOR_V2_ROUTER_ADDRESS
+  )
 
   const addTransaction = useTransactionAdder()
 
@@ -151,72 +169,221 @@ export default function Add() {
       [Field.CURRENCY_B]: calculateSlippageAmount(parsedAmountB, noLiquidity ? ZERO_PERCENT : allowedSlippage)[0],
     }
 
-    let estimate,
-      method: (...args: any) => Promise<TransactionResponse>,
-      args: Array<string | string[] | number>,
-      value: BigNumber | null
-    if (currencyA.isNative || currencyB.isNative) {
-      const tokenBIsETH = currencyB.isNative
-      estimate = routerContract.estimateGas.addLiquidityETH
-      method = routerContract.addLiquidityETH
-      args = [
-        (tokenBIsETH ? currencyA : currencyB)?.wrapped?.address ?? '', // token
-        (tokenBIsETH ? parsedAmountA : parsedAmountB).quotient.toString(), // token desired
-        amountsMin[tokenBIsETH ? Field.CURRENCY_A : Field.CURRENCY_B].toString(), // token min
-        amountsMin[tokenBIsETH ? Field.CURRENCY_B : Field.CURRENCY_A].toString(), // eth min
-        account,
-        deadline.toHexString(),
-      ]
-      value = BigNumber.from((tokenBIsETH ? parsedAmountB : parsedAmountA).quotient.toString())
-    } else {
-      estimate = routerContract.estimateGas.addLiquidity
-      method = routerContract.addLiquidity
-      args = [
-        currencyA?.wrapped?.address ?? '',
-        currencyB?.wrapped?.address ?? '',
-        parsedAmountA.quotient.toString(),
-        parsedAmountB.quotient.toString(),
-        amountsMin[Field.CURRENCY_A].toString(),
-        amountsMin[Field.CURRENCY_B].toString(),
-        account,
-        deadline.toHexString(),
-      ]
-      value = null
-    }
+    console.log('userConveyorUseRelay: ', userConveyorUseRelay)
 
-    setAttemptingTxn(true)
-    await estimate(...args, value ? { value } : {})
-      .then((estimatedGasLimit) =>
-        method(...args, {
-          ...(value ? { value } : {}),
-          gasLimit: calculateGasMargin(estimatedGasLimit),
-        }).then((response) => {
+    if (!userConveyorUseRelay) {
+      // Sushiswap's default add
+      let estimate,
+        method: (...args: any) => Promise<TransactionResponse>,
+        args: Array<string | string[] | number>,
+        value: BigNumber | null
+      if (currencyA.isNative || currencyB.isNative) {
+        const tokenBIsETH = currencyB.isNative
+        estimate = routerContract.estimateGas.addLiquidityETH
+        method = routerContract.addLiquidityETH
+        args = [
+          (tokenBIsETH ? currencyA : currencyB)?.wrapped?.address ?? '', // token
+          (tokenBIsETH ? parsedAmountA : parsedAmountB).quotient.toString(), // token desired
+          amountsMin[tokenBIsETH ? Field.CURRENCY_A : Field.CURRENCY_B].toString(), // token min
+          amountsMin[tokenBIsETH ? Field.CURRENCY_B : Field.CURRENCY_A].toString(), // eth min
+          account,
+          deadline.toHexString(),
+        ]
+        value = BigNumber.from((tokenBIsETH ? parsedAmountB : parsedAmountA).quotient.toString())
+      } else {
+        estimate = routerContract.estimateGas.addLiquidity
+        method = routerContract.addLiquidity
+        args = [
+          currencyA?.wrapped?.address ?? '',
+          currencyB?.wrapped?.address ?? '',
+          parsedAmountA.quotient.toString(),
+          parsedAmountB.quotient.toString(),
+          amountsMin[Field.CURRENCY_A].toString(),
+          amountsMin[Field.CURRENCY_B].toString(),
+          account,
+          deadline.toHexString(),
+        ]
+        value = null
+      }
+
+      setAttemptingTxn(true)
+      await estimate(...args, value ? { value } : {})
+        .then((estimatedGasLimit) =>
+          method(...args, {
+            ...(value ? { value } : {}),
+            gasLimit: calculateGasMargin(estimatedGasLimit),
+          }).then((response) => {
+            setAttemptingTxn(false)
+
+            addTransaction(response, {
+              summary: i18n._(
+                t`Add ${parsedAmounts[Field.CURRENCY_A]?.toSignificant(3)} ${
+                  currencies[Field.CURRENCY_A]?.symbol
+                } and ${parsedAmounts[Field.CURRENCY_B]?.toSignificant(3)} ${currencies[Field.CURRENCY_B]?.symbol}`
+              ),
+            })
+
+            setTxHash(response.hash)
+
+            ReactGA.event({
+              category: 'Liquidity',
+              action: 'Add',
+              label: [currencies[Field.CURRENCY_A]?.symbol, currencies[Field.CURRENCY_B]?.symbol].join('/'),
+            })
+          })
+        )
+        .catch((error) => {
           setAttemptingTxn(false)
-
-          addTransaction(response, {
-            summary: i18n._(
-              t`Add ${parsedAmounts[Field.CURRENCY_A]?.toSignificant(3)} ${
-                currencies[Field.CURRENCY_A]?.symbol
-              } and ${parsedAmounts[Field.CURRENCY_B]?.toSignificant(3)} ${currencies[Field.CURRENCY_B]?.symbol}`
-            ),
-          })
-
-          setTxHash(response.hash)
-
-          ReactGA.event({
-            category: 'Liquidity',
-            action: 'Add',
-            label: [currencies[Field.CURRENCY_A]?.symbol, currencies[Field.CURRENCY_B]?.symbol].join('/'),
-          })
+          // we only care if the error is something _other_ than the user rejected the tx
+          if (error?.code !== 4001) {
+            console.error(error)
+          }
         })
-      )
-      .catch((error) => {
-        setAttemptingTxn(false)
-        // we only care if the error is something _other_ than the user rejected the tx
-        if (error?.code !== 4001) {
-          console.error(error)
-        }
+    } else {
+      // Use ConveyorV2 relay for add
+      const nonce: BigNumber = await conveyorRouterContract.nonces(account)
+
+      const { [Field.CURRENCY_A]: parsedAmountA, [Field.CURRENCY_B]: parsedAmountB } = parsedAmounts
+      if (!parsedAmountA || !parsedAmountB || !currencyA || !currencyB || !deadline) {
+        return
+      }
+
+      const amountADesired = parsedAmountA.toFixed(parsedAmountA.currency.decimals, {
+        decimalSeparator: '',
+        groupSeparator: '',
       })
+      const amountBDesired = parsedAmountB.toFixed(parsedAmountB.currency.decimals, {
+        decimalSeparator: '',
+        groupSeparator: '',
+      })
+      const amountAMin = amountsMin[Field.CURRENCY_A].toString()
+      const amountBMin = amountsMin[Field.CURRENCY_B].toString()
+      console.log('amountAMin: ', amountAMin)
+      console.log('amountBMin: ', amountBMin)
+
+      // if (currencyA === ETHER || currencyB === ETHER) {
+      //   setErrorMessage('Only GToken is supported')
+      //   return
+      // }
+
+      const gasPrice = await library?.getGasPrice()
+      const gasLimit = pairState === PairState.NOT_EXISTS ? CREATE_PAIR_GAS_LIMIT : ADD_LIQUIDITY_GAS_LIMIT
+      const feeOnTokenA = await calculateConveyorFeeOnToken(
+        chainId,
+        currencyIdA,
+        currencyA.decimals,
+        gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
+      )
+
+      const EIP712Domain = [
+        { name: 'name', type: 'string' },
+        { name: 'version', type: 'string' },
+        { name: 'chainId', type: 'uint256' },
+        { name: 'verifyingContract', type: 'address' },
+      ]
+
+      const AddLiquidity = [
+        { name: 'tokenA', type: 'address' },
+        { name: 'tokenB', type: 'address' },
+        { name: 'amountADesired', type: 'uint256' },
+        { name: 'amountBDesired', type: 'uint256' },
+        { name: 'amountAMin', type: 'uint256' },
+        { name: 'amountBMin', type: 'uint256' },
+        { name: 'user', type: 'address' },
+        { name: 'nonce', type: 'uint256' },
+        { name: 'deadline', type: 'uint256' },
+        { name: 'feeAmount', type: 'uint256' },
+        { name: 'feeToken', type: 'address' },
+      ]
+
+      const domain = {
+        name: 'ConveyorV2',
+        version: '1',
+        chainId: BigNumber.from(chainId).toHexString(),
+        // verifyingContract: GTOKEN_CONTROLLER_MAP[chainId]
+        verifyingContract: CONVEYOR_V2_ROUTER_ADDRESS,
+      }
+
+      console.log('parsedAmounts:', { parsedAmountA, parsedAmountB })
+      console.log('formattedParsedAmounts:', {
+        parsedAmountA: parsedAmountA.toFixed(18, { decimalSeparator: '', groupSeparator: '' }),
+        parsedAmountB: parsedAmountB.toFixed(18, { decimalSeparator: '', groupSeparator: '' }),
+      })
+      console.log('parsedAmounts:', { parsedAmountA, parsedAmountB })
+      console.log('amountsMin:', [amountsMin[Field.CURRENCY_A].toString(), amountsMin[Field.CURRENCY_B].toString()])
+
+      const message = {
+        tokenA: currencyIdA,
+        tokenB: currencyIdB,
+        amountADesired: BigNumber.from(amountADesired).toHexString(),
+        amountBDesired: BigNumber.from(amountBDesired).toHexString(),
+        amountAMin: BigNumber.from(amountAMin).toHexString(),
+        amountBMin: BigNumber.from(amountBMin).toHexString(),
+        user: account,
+        nonce: nonce.toHexString(),
+        deadline: deadline.toHexString(),
+        feeAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+        feeToken: currencyIdA,
+      }
+
+      const EIP712Msg = {
+        types: {
+          EIP712Domain,
+          AddLiquidity,
+        },
+        domain,
+        primaryType: 'AddLiquidity',
+        message,
+      }
+
+      const data = JSON.stringify(EIP712Msg)
+      setAttemptingTxn(true)
+      const signature = await library.send('eth_signTypedData_v4', [account, data])
+      const { v, r, s } = splitSignature(signature)
+
+      const params = [chainId, EIP712Msg, v.toString(), r, s]
+      console.log('params: ', params)
+
+      const jsonrpcRequest = {
+        jsonrpc: '2.0',
+        method: '/v2/addLiquidity',
+        id: 1,
+        params,
+      }
+
+      const requestOptions = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(jsonrpcRequest),
+      }
+      console.log(jsonrpcRequest)
+      // const environment = process.env.REACT_APP_ENVIRONMENT ? process.env.REACT_APP_ENVIRONMENT : 'staging'
+      const jsonrpcResponse = await fetch(CONVEYOR_RELAYER_URI[chainId]!, requestOptions)
+
+      const { result: response } = await jsonrpcResponse.json()
+
+      setAttemptingTxn(false)
+
+      if (response.success === true) {
+        addTransaction(response.txnHash, {
+          summary:
+            'Add ' +
+            parsedAmounts[Field.CURRENCY_A]?.toSignificant(3) +
+            ' ' +
+            currencies[Field.CURRENCY_A]?.symbol +
+            ' and ' +
+            parsedAmounts[Field.CURRENCY_B]?.toSignificant(3) +
+            ' ' +
+            currencies[Field.CURRENCY_B]?.symbol,
+        })
+
+        setTxHash(response.txnHash)
+      } else {
+        throw new Error(response.errorMessage)
+      }
+    }
   }
 
   const modalHeader = () => {
