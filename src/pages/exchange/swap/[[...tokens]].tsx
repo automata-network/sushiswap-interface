@@ -296,12 +296,15 @@ export default function Swap() {
     })
     swapCallback()
       .then((hash) => {
+        let _hash = hash
+        if (typeof hash === 'object') _hash = hash.txHash
+
         setSwapState({
           attemptingTxn: false,
           tradeToConfirm,
           showConfirm,
           swapErrorMessage: undefined,
-          txHash: hash,
+          txHash: _hash as string,
         })
 
         ReactGA.event({
