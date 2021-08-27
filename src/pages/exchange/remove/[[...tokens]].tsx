@@ -7,7 +7,7 @@ import React, { useCallback, useMemo, useState } from 'react'
 import TransactionConfirmationModal, { ConfirmationModalContent } from '../../../modals/TransactionConfirmationModal'
 import { calculateGasMargin, calculateSlippageAmount } from '../../../functions/trade'
 import { useBurnActionHandlers, useBurnState, useDerivedBurnInfo } from '../../../state/burn/hooks'
-import { usePairContract, useRouterContract } from '../../../hooks/useContract'
+import { useConveyorRouterContract, usePairContract, useRouterContract } from '../../../hooks/useContract'
 
 import Alert from '../../../components/Alert'
 import { ArrowDownIcon } from '@heroicons/react/solid'
@@ -44,9 +44,12 @@ import { useLingui } from '@lingui/react'
 import { useRouter } from 'next/router'
 import { useTransactionAdder } from '../../../state/transactions/hooks'
 import useTransactionDeadline from '../../../hooks/useTransactionDeadline'
-import { useUserSlippageToleranceWithDefault } from '../../../state/user/hooks'
+import { useUserConveyorUseRelay, useUserSlippageToleranceWithDefault } from '../../../state/user/hooks'
 import { useV2LiquidityTokenPermit } from '../../../hooks/useERC20Permit'
 import { useWalletModalToggle } from '../../../state/application/hooks'
+import { calculateConveyorFeeOnToken } from '../../../functions/conveyorFee'
+import { ADD_LIQUIDITY_GAS_LIMIT } from '../../../constants'
+import { CONVEYOR_RELAYER_URI } from '../../../config/conveyor'
 
 const DEFAULT_REMOVE_LIQUIDITY_SLIPPAGE_TOLERANCE = new Percent(5, 100)
 
@@ -104,29 +107,139 @@ export default function Remove() {
   // router contract
   const routerContract = useRouterContract()
 
+  // Conveyor v2 setup
+  const [userConveyorUseRelay] = useUserConveyorUseRelay()
+  const conveyorRouterContract = useConveyorRouterContract()
+  const [EIP712Msg, setEIP712Msg] = useState<any | null>(null)
+  const [conveyorSignatureData, setConveyorSignatureData] = useState<{
+    v: number
+    r: string
+    s: string
+    deadline: number
+  } | null>(null)
+
   // allowance handling
   const { gatherPermitSignature, signatureData } = useV2LiquidityTokenPermit(
     parsedAmounts[Field.LIQUIDITY],
-    routerContract?.address
+    !userConveyorUseRelay ? routerContract?.address : conveyorRouterContract?.address
   )
-  const [approval, approveCallback] = useApproveCallback(parsedAmounts[Field.LIQUIDITY], routerContract?.address)
+  const [approval, approveCallback] = useApproveCallback(
+    parsedAmounts[Field.LIQUIDITY],
+    !userConveyorUseRelay ? routerContract?.address : conveyorRouterContract?.address
+  )
 
   async function onAttemptToApprove() {
     if (!pairContract || !pair || !library || !deadline) throw new Error('missing dependencies')
     const liquidityAmount = parsedAmounts[Field.LIQUIDITY]
     if (!liquidityAmount) throw new Error('missing liquidity amount')
+    const parsedLiquidityAmount = liquidityAmount.toFixed(liquidityAmount.currency.decimals, {
+      decimalSeparator: '',
+      groupSeparator: '',
+    })
 
-    if (chainId !== ChainId.HARMONY && gatherPermitSignature) {
-      try {
-        await gatherPermitSignature()
-      } catch (error) {
-        // try to approve if gatherPermitSignature failed for any reason other than the user rejecting it
-        if (error?.code !== 4001) {
-          await approveCallback()
+    if (!userConveyorUseRelay) {
+      // Use default sushi approval
+      if (chainId !== ChainId.HARMONY && gatherPermitSignature) {
+        try {
+          await gatherPermitSignature()
+        } catch (error) {
+          // try to approve if gatherPermitSignature failed for any reason other than the user rejecting it
+          if (error?.code !== 4001) {
+            await approveCallback()
+          }
         }
+      } else {
+        await approveCallback()
       }
     } else {
-      await approveCallback()
+      // Use Conveyor v2 approval
+      const { [Field.CURRENCY_A]: currencyAmountA, [Field.CURRENCY_B]: currencyAmountB } = parsedAmounts
+      if (!currencyAmountA || !currencyAmountB) {
+        throw new Error('missing currency amounts')
+      }
+      const amountsMin = {
+        [Field.CURRENCY_A]: calculateSlippageAmount(currencyAmountA, allowedSlippage)[0],
+        [Field.CURRENCY_B]: calculateSlippageAmount(currencyAmountB, allowedSlippage)[0],
+      }
+
+      const gasPrice = await library?.getGasPrice()
+      const gasLimit = ADD_LIQUIDITY_GAS_LIMIT
+      const feeOnTokenA = await calculateConveyorFeeOnToken(
+        chainId,
+        currencyIdA,
+        currencyA!.decimals,
+        gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
+      )
+
+      // try to gather a signature for permission
+      const nonce = await pairContract.nonces(account)
+
+      const EIP712Domain = [
+        { name: 'name', type: 'string' },
+        { name: 'version', type: 'string' },
+        { name: 'chainId', type: 'uint256' },
+        { name: 'verifyingContract', type: 'address' },
+      ]
+
+      const Permit = [
+        { name: 'owner', type: 'address' },
+        { name: 'spender', type: 'address' },
+        { name: 'tokenA', type: 'address' },
+        { name: 'tokenB', type: 'address' },
+        { name: 'amountAMin', type: 'uint256' },
+        { name: 'amountBMin', type: 'uint256' },
+        { name: 'value', type: 'uint256' },
+        { name: 'nonce', type: 'uint256' },
+        { name: 'deadline', type: 'uint256' },
+        { name: 'feeAmount', type: 'uint256' },
+        { name: 'feeToken', type: 'address' },
+      ]
+
+      console.log(pair)
+
+      const domain = {
+        name: 'Conveyor V2',
+        version: '1',
+        chainId: BigNumber.from(chainId).toHexString(),
+        verifyingContract: pair.liquidityToken.address,
+      }
+
+      const message = {
+        owner: account,
+        spender: conveyorRouterContract?.address,
+        tokenA: currencyIdA,
+        tokenB: currencyIdB,
+        amountAMin: BigNumber.from(amountsMin.CURRENCY_A.toString()).toHexString(),
+        amountBMin: BigNumber.from(amountsMin.CURRENCY_B.toString()).toHexString(),
+        value: BigNumber.from(parsedLiquidityAmount).toHexString(),
+        nonce: nonce.toHexString(),
+        deadline: deadline.toHexString(),
+        feeAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+        feeToken: currencyIdA,
+      }
+
+      const _EIP712Msg = {
+        types: {
+          EIP712Domain,
+          Permit,
+        },
+        domain,
+        primaryType: 'Permit',
+        message,
+      }
+
+      // console.log('account: ', account)
+      // console.log('EIP712Msg account: ', _EIP712Msg)
+
+      const data = JSON.stringify(_EIP712Msg)
+      // console.log('data:', data)
+
+      // Here we use state so we can retrieve the value later in onRemove callback
+      setEIP712Msg(_EIP712Msg)
+
+      const signature = await library.send('eth_signTypedData_v4', [account, data])
+      const { r, s, v } = splitSignature(signature)
+      setConveyorSignatureData({ r, s, v, deadline: deadline.toNumber() })
     }
   }
 
@@ -170,127 +283,192 @@ export default function Remove() {
     const liquidityAmount = parsedAmounts[Field.LIQUIDITY]
     if (!liquidityAmount) throw new Error('missing liquidity amount')
 
-    const currencyBIsETH = currencyB.isNative
-    const oneCurrencyIsETH = currencyA.isNative || currencyBIsETH
+    if (!userConveyorUseRelay) {
+      // Default sushi removal process
+      const currencyBIsETH = currencyB.isNative
+      const oneCurrencyIsETH = currencyA.isNative || currencyBIsETH
 
-    if (!tokenA || !tokenB) throw new Error('could not wrap')
+      if (!tokenA || !tokenB) throw new Error('could not wrap')
 
-    let methodNames: string[], args: Array<string | string[] | number | boolean>
-    // we have approval, use normal remove liquidity
-    if (approval === ApprovalState.APPROVED) {
-      // removeLiquidityETH
-      if (oneCurrencyIsETH) {
-        methodNames = ['removeLiquidityETH', 'removeLiquidityETHSupportingFeeOnTransferTokens']
-        args = [
-          currencyBIsETH ? tokenA.address : tokenB.address,
-          liquidityAmount.quotient.toString(),
-          amountsMin[currencyBIsETH ? Field.CURRENCY_A : Field.CURRENCY_B].toString(),
-          amountsMin[currencyBIsETH ? Field.CURRENCY_B : Field.CURRENCY_A].toString(),
-          account,
-          deadline.toHexString(),
-        ]
+      let methodNames: string[], args: Array<string | string[] | number | boolean>
+      // we have approval, use normal remove liquidity
+      if (approval === ApprovalState.APPROVED) {
+        // removeLiquidityETH
+        if (oneCurrencyIsETH) {
+          methodNames = ['removeLiquidityETH', 'removeLiquidityETHSupportingFeeOnTransferTokens']
+          args = [
+            currencyBIsETH ? tokenA.address : tokenB.address,
+            liquidityAmount.quotient.toString(),
+            amountsMin[currencyBIsETH ? Field.CURRENCY_A : Field.CURRENCY_B].toString(),
+            amountsMin[currencyBIsETH ? Field.CURRENCY_B : Field.CURRENCY_A].toString(),
+            account,
+            deadline.toHexString(),
+          ]
+        }
+        // removeLiquidity
+        else {
+          methodNames = ['removeLiquidity']
+          args = [
+            tokenA.address,
+            tokenB.address,
+            liquidityAmount.quotient.toString(),
+            amountsMin[Field.CURRENCY_A].toString(),
+            amountsMin[Field.CURRENCY_B].toString(),
+            account,
+            deadline.toHexString(),
+          ]
+        }
       }
-      // removeLiquidity
-      else {
-        methodNames = ['removeLiquidity']
-        args = [
-          tokenA.address,
-          tokenB.address,
-          liquidityAmount.quotient.toString(),
-          amountsMin[Field.CURRENCY_A].toString(),
-          amountsMin[Field.CURRENCY_B].toString(),
-          account,
-          deadline.toHexString(),
-        ]
+      // we have a signature, use permit versions of remove liquidity
+      else if (signatureData !== null) {
+        // removeLiquidityETHWithPermit
+        if (oneCurrencyIsETH) {
+          methodNames = ['removeLiquidityETHWithPermit', 'removeLiquidityETHWithPermitSupportingFeeOnTransferTokens']
+          args = [
+            currencyBIsETH ? tokenA.address : tokenB.address,
+            liquidityAmount.quotient.toString(),
+            amountsMin[currencyBIsETH ? Field.CURRENCY_A : Field.CURRENCY_B].toString(),
+            amountsMin[currencyBIsETH ? Field.CURRENCY_B : Field.CURRENCY_A].toString(),
+            account,
+            signatureData.deadline,
+            false,
+            signatureData.v,
+            signatureData.r,
+            signatureData.s,
+          ]
+        }
+        // removeLiquidityETHWithPermit
+        else {
+          methodNames = ['removeLiquidityWithPermit']
+          args = [
+            tokenA.address,
+            tokenB.address,
+            liquidityAmount.quotient.toString(),
+            amountsMin[Field.CURRENCY_A].toString(),
+            amountsMin[Field.CURRENCY_B].toString(),
+            account,
+            signatureData.deadline,
+            false,
+            signatureData.v,
+            signatureData.r,
+            signatureData.s,
+          ]
+        }
+      } else {
+        throw new Error('Attempting to confirm without approval or a signature. Please contact support.')
       }
-    }
-    // we have a signature, use permit versions of remove liquidity
-    else if (signatureData !== null) {
-      // removeLiquidityETHWithPermit
-      if (oneCurrencyIsETH) {
-        methodNames = ['removeLiquidityETHWithPermit', 'removeLiquidityETHWithPermitSupportingFeeOnTransferTokens']
-        args = [
-          currencyBIsETH ? tokenA.address : tokenB.address,
-          liquidityAmount.quotient.toString(),
-          amountsMin[currencyBIsETH ? Field.CURRENCY_A : Field.CURRENCY_B].toString(),
-          amountsMin[currencyBIsETH ? Field.CURRENCY_B : Field.CURRENCY_A].toString(),
-          account,
-          signatureData.deadline,
-          false,
-          signatureData.v,
-          signatureData.r,
-          signatureData.s,
-        ]
-      }
-      // removeLiquidityETHWithPermit
-      else {
-        methodNames = ['removeLiquidityWithPermit']
-        args = [
-          tokenA.address,
-          tokenB.address,
-          liquidityAmount.quotient.toString(),
-          amountsMin[Field.CURRENCY_A].toString(),
-          amountsMin[Field.CURRENCY_B].toString(),
-          account,
-          signatureData.deadline,
-          false,
-          signatureData.v,
-          signatureData.r,
-          signatureData.s,
-        ]
-      }
-    } else {
-      throw new Error('Attempting to confirm without approval or a signature. Please contact support.')
-    }
 
-    const safeGasEstimates: (BigNumber | undefined)[] = await Promise.all(
-      methodNames.map((methodName) =>
-        routerContract.estimateGas[methodName](...args)
-          .then(calculateGasMargin)
-          .catch((error) => {
-            console.error(`estimateGas failed`, methodName, args, error)
-            return undefined
-          })
+      const safeGasEstimates: (BigNumber | undefined)[] = await Promise.all(
+        methodNames.map((methodName) =>
+          routerContract.estimateGas[methodName](...args)
+            .then(calculateGasMargin)
+            .catch((error) => {
+              console.error(`estimateGas failed`, methodName, args, error)
+              return undefined
+            })
+        )
       )
-    )
 
-    const indexOfSuccessfulEstimation = safeGasEstimates.findIndex((safeGasEstimate) =>
-      BigNumber.isBigNumber(safeGasEstimate)
-    )
+      const indexOfSuccessfulEstimation = safeGasEstimates.findIndex((safeGasEstimate) =>
+        BigNumber.isBigNumber(safeGasEstimate)
+      )
 
-    // all estimations failed...
-    if (indexOfSuccessfulEstimation === -1) {
-      console.error('This transaction would fail. Please contact support.')
+      // all estimations failed...
+      if (indexOfSuccessfulEstimation === -1) {
+        console.error('This transaction would fail. Please contact support.')
+      } else {
+        const methodName = methodNames[indexOfSuccessfulEstimation]
+        const safeGasEstimate = safeGasEstimates[indexOfSuccessfulEstimation]
+
+        setAttemptingTxn(true)
+        await routerContract[methodName](...args, {
+          gasLimit: safeGasEstimate,
+        })
+          .then((response: TransactionResponse) => {
+            setAttemptingTxn(false)
+
+            addTransaction(response, {
+              summary: t`Remove ${parsedAmounts[Field.CURRENCY_A]?.toSignificant(3)} ${
+                currencyA?.symbol
+              } and ${parsedAmounts[Field.CURRENCY_B]?.toSignificant(3)} ${currencyB?.symbol}`,
+            })
+
+            setTxHash(response.hash)
+
+            ReactGA.event({
+              category: 'Liquidity',
+              action: 'Remove',
+              label: [currencyA?.symbol, currencyB?.symbol].join('/'),
+            })
+          })
+          .catch((error: Error) => {
+            setAttemptingTxn(false)
+            // we only care if the error is something _other_ than the user rejected the tx
+            console.error(error)
+          })
+      }
     } else {
-      const methodName = methodNames[indexOfSuccessfulEstimation]
-      const safeGasEstimate = safeGasEstimates[indexOfSuccessfulEstimation]
+      // RPC call for Conveyor v2 removal process
+      // console.log('signatureData: ', signatureData)
+      if (conveyorSignatureData === null) {
+        throw new Error('Liquidity approval failed')
+      }
 
       setAttemptingTxn(true)
-      await routerContract[methodName](...args, {
-        gasLimit: safeGasEstimate,
-      })
-        .then((response: TransactionResponse) => {
-          setAttemptingTxn(false)
 
-          addTransaction(response, {
-            summary: t`Remove ${parsedAmounts[Field.CURRENCY_A]?.toSignificant(3)} ${
-              currencyA?.symbol
-            } and ${parsedAmounts[Field.CURRENCY_B]?.toSignificant(3)} ${currencyB?.symbol}`,
-          })
+      const params = [
+        chainId,
+        EIP712Msg,
+        conveyorSignatureData.v.toString(),
+        conveyorSignatureData.r,
+        conveyorSignatureData.s,
+      ]
+      // console.log('params: ', params)
 
-          setTxHash(response.hash)
+      const jsonRPCRequest = {
+        jsonrpc: '2.0',
+        method: '/v2/removeLiquidity',
+        id: 1,
+        params,
+      }
 
-          ReactGA.event({
-            category: 'Liquidity',
-            action: 'Remove',
-            label: [currencyA?.symbol, currencyB?.symbol].join('/'),
-          })
+      const requestOptions = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(jsonRPCRequest),
+      }
+
+      const jsonRPCResponse = await fetch(CONVEYOR_RELAYER_URI[chainId]!, requestOptions)
+      // console.log('jsonRPCResponse: ', jsonRPCResponse)
+      const { result: response } = await jsonRPCResponse.json()
+      // console.log('jsonRPCResponse result: ', response)
+
+      setAttemptingTxn(false)
+
+      if (response.success === true) {
+        const [parsedAmountA, parsedAmountB] = [
+          parsedAmounts[Field.CURRENCY_A]?.toSignificant(3),
+          parsedAmounts[Field.CURRENCY_B]?.toSignificant(3),
+        ]
+        addTransaction(response.txnHash, {
+          summary: `Remove ${parsedAmountA} ${currencyA?.symbol} and ${parsedAmountB} ${currencyB?.symbol}`,
+          // 'Add ' +
+          // parsedAmounts[Field.CURRENCY_A]?.toSignificant(3) +
+          // ' ' +
+          // currencies[Field.CURRENCY_A]?.symbol +
+          // ' and ' +
+          // parsedAmounts[Field.CURRENCY_B]?.toSignificant(3) +
+          // ' ' +
+          // currencies[Field.CURRENCY_B]?.symbol
         })
-        .catch((error: Error) => {
-          setAttemptingTxn(false)
-          // we only care if the error is something _other_ than the user rejected the tx
-          console.error(error)
-        })
+
+        setTxHash(response.txnHash)
+      } else {
+        console.error(response.errorMessage)
+        return
+      }
     }
   }
 
@@ -640,14 +818,25 @@ export default function Remove() {
             </div>
           </div>
         </div>
-        <Button
-          color="gradient"
-          size="lg"
-          disabled={!(approval === ApprovalState.APPROVED || signatureData !== null)}
-          onClick={onRemove}
-        >
-          {i18n._(t`Confirm`)}
-        </Button>
+        {!userConveyorUseRelay ? (
+          <Button
+            color="gradient"
+            size="lg"
+            disabled={!(approval === ApprovalState.APPROVED || signatureData !== null)}
+            onClick={onRemove}
+          >
+            {i18n._(t`Confirm`)}
+          </Button>
+        ) : (
+          <Button
+            color="gradient"
+            size="lg"
+            disabled={!(approval === ApprovalState.APPROVED || conveyorSignatureData !== null)}
+            onClick={onRemove}
+          >
+            {i18n._(t`Confirm`)}
+          </Button>
+        )}
       </div>
     )
   }
@@ -832,28 +1021,57 @@ export default function Remove() {
                   <Web3Connect size="lg" color="blue" className="w-full" />
                 ) : (
                   <div className="grid grid-cols-2 gap-4">
-                    <ButtonConfirmed
-                      onClick={onAttemptToApprove}
-                      confirmed={approval === ApprovalState.APPROVED || signatureData !== null}
-                      disabled={approval !== ApprovalState.NOT_APPROVED || signatureData !== null}
-                    >
-                      {approval === ApprovalState.PENDING ? (
-                        <Dots>{i18n._(t`Approving`)}</Dots>
-                      ) : approval === ApprovalState.APPROVED || signatureData !== null ? (
-                        i18n._(t`Approved`)
-                      ) : (
-                        i18n._(t`Approve`)
-                      )}
-                    </ButtonConfirmed>
-                    <ButtonError
-                      onClick={() => {
-                        setShowConfirm(true)
-                      }}
-                      disabled={!isValid || (signatureData === null && approval !== ApprovalState.APPROVED)}
-                      error={!isValid && !!parsedAmounts[Field.CURRENCY_A] && !!parsedAmounts[Field.CURRENCY_B]}
-                    >
-                      {error || i18n._(t`Confirm Withdrawal`)}
-                    </ButtonError>
+                    {!userConveyorUseRelay ? (
+                      <ButtonConfirmed
+                        onClick={onAttemptToApprove}
+                        confirmed={approval === ApprovalState.APPROVED || signatureData !== null}
+                        disabled={approval !== ApprovalState.NOT_APPROVED || signatureData !== null}
+                      >
+                        {approval === ApprovalState.PENDING ? (
+                          <Dots>{i18n._(t`Approving`)}</Dots>
+                        ) : approval === ApprovalState.APPROVED || signatureData !== null ? (
+                          i18n._(t`Approved`)
+                        ) : (
+                          i18n._(t`Approve`)
+                        )}
+                      </ButtonConfirmed>
+                    ) : (
+                      <ButtonConfirmed
+                        onClick={onAttemptToApprove}
+                        confirmed={approval === ApprovalState.APPROVED || conveyorSignatureData !== null}
+                        disabled={approval !== ApprovalState.NOT_APPROVED || conveyorSignatureData !== null}
+                      >
+                        {approval === ApprovalState.PENDING ? (
+                          <Dots>{i18n._(t`Approving`)}</Dots>
+                        ) : approval === ApprovalState.APPROVED || conveyorSignatureData !== null ? (
+                          i18n._(t`Approved`)
+                        ) : (
+                          i18n._(t`Approve`)
+                        )}
+                      </ButtonConfirmed>
+                    )}
+
+                    {!userConveyorUseRelay ? (
+                      <ButtonError
+                        onClick={() => {
+                          setShowConfirm(true)
+                        }}
+                        disabled={!isValid || (signatureData === null && approval !== ApprovalState.APPROVED)}
+                        error={!isValid && !!parsedAmounts[Field.CURRENCY_A] && !!parsedAmounts[Field.CURRENCY_B]}
+                      >
+                        {error || i18n._(t`Confirm Withdrawal`)}
+                      </ButtonError>
+                    ) : (
+                      <ButtonError
+                        onClick={() => {
+                          setShowConfirm(true)
+                        }}
+                        disabled={!isValid || (conveyorSignatureData === null && approval !== ApprovalState.APPROVED)}
+                        error={!isValid && !!parsedAmounts[Field.CURRENCY_A] && !!parsedAmounts[Field.CURRENCY_B]}
+                      >
+                        {error || i18n._(t`Confirm Withdrawal`)}
+                      </ButtonError>
+                    )}
                   </div>
                 )}
               </div>
