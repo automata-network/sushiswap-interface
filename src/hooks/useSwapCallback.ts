@@ -741,6 +741,8 @@ export function useSwapCallback(
         const originalOutputTokenSymbol = trade.outputAmount.currency.symbol
 
         if (result.success === true) {
+          console.log('---swapCallback---')
+          console.log('result: ', result)
           addTransaction(result.txnHash, {
             summary: `Swap ${trade.inputAmount.toSignificant(
               3
