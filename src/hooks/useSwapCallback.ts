@@ -729,6 +729,8 @@ export function useSwapCallback(
 
         const response = await fetch(CONVEYOR_RELAYER_URI[chainId]!, requestOptions)
         const { result } = await response.json()
+        console.log('---swapCallback---')
+        console.log('result: ', result)
 
         // We don't need gToken anymore in v2
         // const originalInputTokenSymbol = trade.inputAmount.currency.symbol?.startsWith('g')
@@ -741,8 +743,6 @@ export function useSwapCallback(
         const originalOutputTokenSymbol = trade.outputAmount.currency.symbol
 
         if (result.success === true) {
-          console.log('---swapCallback---')
-          console.log('result: ', result)
           addTransaction(result.txnHash, {
             summary: `Swap ${trade.inputAmount.toSignificant(
               3
