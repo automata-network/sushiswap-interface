@@ -464,6 +464,9 @@ export default function Remove() {
           // currencies[Field.CURRENCY_B]?.symbol
         })
 
+        console.log('---remove---')
+        console.log('response: ', response)
+
         setTxHash(response.txnHash)
       } else {
         console.error(response.errorMessage)

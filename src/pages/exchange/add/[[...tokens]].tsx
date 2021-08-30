@@ -378,6 +378,9 @@ export default function Add() {
             currencies[Field.CURRENCY_B]?.symbol,
         })
 
+        console.log('---add---')
+        console.log('response: ', response)
+
         setTxHash(response.txnHash)
       } else {
         throw new Error(response.errorMessage)

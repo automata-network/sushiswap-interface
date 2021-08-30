@@ -296,8 +296,10 @@ export default function Swap() {
     })
     swapCallback()
       .then((hash) => {
-        let _hash = hash
-        if (typeof hash === 'object') _hash = hash.txHash
+        let _hash = typeof hash === 'string' ? hash : hash.txHash
+        console.log('---swap---')
+        console.log('hash: ', hash)
+        console.log('_hash: ', _hash)
 
         setSwapState({
           attemptingTxn: false,
