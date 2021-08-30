@@ -158,7 +158,7 @@ export default function Add() {
 
     const { [Field.CURRENCY_A]: parsedAmountA, [Field.CURRENCY_B]: parsedAmountB } = parsedAmounts
 
-    console.log({ parsedAmountA, parsedAmountB, currencyA, currencyB, deadline })
+    // console.log({ parsedAmountA, parsedAmountB, currencyA, currencyB, deadline })
 
     if (!parsedAmountA || !parsedAmountB || !currencyA || !currencyB || !deadline) {
       return
@@ -169,7 +169,7 @@ export default function Add() {
       [Field.CURRENCY_B]: calculateSlippageAmount(parsedAmountB, noLiquidity ? ZERO_PERCENT : allowedSlippage)[0],
     }
 
-    console.log('userConveyorUseRelay: ', userConveyorUseRelay)
+    // console.log('userConveyorUseRelay: ', userConveyorUseRelay)
 
     if (!userConveyorUseRelay) {
       // Sushiswap's default add
@@ -258,8 +258,8 @@ export default function Add() {
       })
       const amountAMin = amountsMin[Field.CURRENCY_A].toString()
       const amountBMin = amountsMin[Field.CURRENCY_B].toString()
-      console.log('amountAMin: ', amountAMin)
-      console.log('amountBMin: ', amountBMin)
+      // console.log('amountAMin: ', amountAMin)
+      // console.log('amountBMin: ', amountBMin)
 
       // if (currencyA === ETHER || currencyB === ETHER) {
       //   setErrorMessage('Only GToken is supported')
@@ -303,13 +303,13 @@ export default function Add() {
         verifyingContract: CONVEYOR_V2_ROUTER_ADDRESS[chainId],
       }
 
-      console.log('parsedAmounts:', { parsedAmountA, parsedAmountB })
-      console.log('formattedParsedAmounts:', {
-        parsedAmountA: parsedAmountA.toFixed(18, { decimalSeparator: '', groupSeparator: '' }),
-        parsedAmountB: parsedAmountB.toFixed(18, { decimalSeparator: '', groupSeparator: '' }),
-      })
-      console.log('parsedAmounts:', { parsedAmountA, parsedAmountB })
-      console.log('amountsMin:', [amountsMin[Field.CURRENCY_A].toString(), amountsMin[Field.CURRENCY_B].toString()])
+      // console.log('parsedAmounts:', { parsedAmountA, parsedAmountB })
+      // console.log('formattedParsedAmounts:', {
+      //   parsedAmountA: parsedAmountA.toFixed(18, { decimalSeparator: '', groupSeparator: '' }),
+      //   parsedAmountB: parsedAmountB.toFixed(18, { decimalSeparator: '', groupSeparator: '' }),
+      // })
+      // console.log('parsedAmounts:', { parsedAmountA, parsedAmountB })
+      // console.log('amountsMin:', [amountsMin[Field.CURRENCY_A].toString(), amountsMin[Field.CURRENCY_B].toString()])
 
       const message = {
         tokenA: currencyIdA,
@@ -341,7 +341,7 @@ export default function Add() {
       const { v, r, s } = splitSignature(signature)
 
       const params = [chainId, EIP712Msg, v.toString(), r, s]
-      console.log('params: ', params)
+      // console.log('params: ', params)
 
       const jsonrpcRequest = {
         jsonrpc: '2.0',
@@ -357,7 +357,7 @@ export default function Add() {
         },
         body: JSON.stringify(jsonrpcRequest),
       }
-      console.log(jsonrpcRequest)
+      // console.log(jsonrpcRequest)
       // const environment = process.env.REACT_APP_ENVIRONMENT ? process.env.REACT_APP_ENVIRONMENT : 'staging'
       const jsonrpcResponse = await fetch(CONVEYOR_RELAYER_URI[chainId]!, requestOptions)
 
@@ -380,9 +380,6 @@ export default function Add() {
               currencies[Field.CURRENCY_B]?.symbol,
           }
         )
-
-        console.log('---add---')
-        console.log('response: ', response)
 
         setTxHash(response.txnHash)
       } else {

@@ -195,7 +195,7 @@ export default function Remove() {
         { name: 'feeToken', type: 'address' },
       ]
 
-      console.log(pair)
+      // console.log(pair)
 
       const domain = {
         name: 'Conveyor V2',
@@ -466,9 +466,6 @@ export default function Remove() {
             // currencies[Field.CURRENCY_B]?.symbol
           }
         )
-
-        console.log('---remove---')
-        console.log('response: ', response)
 
         setTxHash(response.txnHash)
       } else {

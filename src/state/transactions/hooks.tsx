@@ -53,9 +53,6 @@ export function useTransactionAdder(): (
       if (!account) return
       if (!chainId) return
 
-      console.log('---tx---')
-      console.log('response: ', response)
-
       const { hash } = response
       if (!hash) {
         throw Error('No transaction hash found.')

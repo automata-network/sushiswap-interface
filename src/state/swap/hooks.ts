@@ -230,10 +230,10 @@ export function useDerivedSwapInfo(
   const [userGasPrice] = useUserArcherGasPrice()
   const [userTipManualOverride, setUserTipManualOverride] = useUserArcherTipManualOverride()
 
-  if (doConveyor) {
-    // Set all Conveyor-specific steps here
-    console.log('using conveyor')
-  }
+  // if (doConveyor) {
+  //   Set all Conveyor-specific steps here
+  //   console.log('using conveyor')
+  // }
 
   useEffect(() => {
     if (doArcher) {
