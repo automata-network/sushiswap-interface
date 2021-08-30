@@ -312,6 +312,7 @@ export function useSwapCallback(
                 }
               })
               .catch((gasError) => {
+                console.log('gasError: ', gasError)
                 console.debug('Gas estimate failed, trying eth_call to extract error', call)
 
                 return library
@@ -676,7 +677,7 @@ export function useSwapCallback(
           name: 'ConveyorV2',
           version: '1',
           chainId: BigNumber.from(chainId).toHexString(),
-          verifyingContract: CONVEYOR_V2_ROUTER_ADDRESS,
+          verifyingContract: CONVEYOR_V2_ROUTER_ADDRESS[chainId],
         }
 
         const message = {

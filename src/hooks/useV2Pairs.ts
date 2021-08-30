@@ -1,9 +1,10 @@
-import { Currency, CurrencyAmount, FACTORY_ADDRESS, Pair, computePairAddress } from '@sushiswap/sdk'
+import { Currency, CurrencyAmount, FACTORY_ADDRESS, Pair, computePairAddress, Exchanger } from '@sushiswap/sdk'
 
 import IUniswapV2PairABI from '@sushiswap/core/abi/IUniswapV2Pair.json'
 import { Interface } from '@ethersproject/abi'
 import { useMemo } from 'react'
 import { useMultipleContractSingleData } from '../state/multicall/hooks'
+import { useUserConveyorUseRelay } from '../state/user/hooks'
 
 const PAIR_INTERFACE = new Interface(IUniswapV2PairABI)
 
@@ -19,6 +20,8 @@ export function useV2Pairs(currencies: [Currency | undefined, Currency | undefin
     () => currencies.map(([currencyA, currencyB]) => [currencyA?.wrapped, currencyB?.wrapped]),
     [currencies]
   )
+  const [useConveyor] = useUserConveyorUseRelay()
+  const exchanger = !useConveyor ? Exchanger.SUSHI : Exchanger.CONVEYOR
 
   const pairAddresses = useMemo(
     () =>
@@ -27,15 +30,16 @@ export function useV2Pairs(currencies: [Currency | undefined, Currency | undefin
           tokenB &&
           tokenA.chainId === tokenB.chainId &&
           !tokenA.equals(tokenB) &&
-          FACTORY_ADDRESS[tokenA.chainId]
+          FACTORY_ADDRESS[exchanger][tokenA.chainId]
           ? computePairAddress({
-              factoryAddress: FACTORY_ADDRESS[tokenA.chainId],
+              factoryAddress: FACTORY_ADDRESS[exchanger][tokenA.chainId],
               tokenA,
               tokenB,
+              isConveyorPair: useConveyor,
             })
           : undefined
       }),
-    [tokens]
+    [tokens, useConveyor, exchanger]
   )
 
   const results = useMultipleContractSingleData(pairAddresses, PAIR_INTERFACE, 'getReserves')
@@ -54,11 +58,12 @@ export function useV2Pairs(currencies: [Currency | undefined, Currency | undefin
         PairState.EXISTS,
         new Pair(
           CurrencyAmount.fromRawAmount(token0, reserve0.toString()),
-          CurrencyAmount.fromRawAmount(token1, reserve1.toString())
+          CurrencyAmount.fromRawAmount(token1, reserve1.toString()),
+          useConveyor
         ),
       ]
     })
-  }, [results, tokens])
+  }, [results, tokens, useConveyor])
 }
 
 export function useV2Pair(tokenA?: Currency, tokenB?: Currency): [PairState, Pair | null] {

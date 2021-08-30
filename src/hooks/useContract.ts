@@ -19,6 +19,7 @@ import {
   SUSHI_ADDRESS,
   TIMELOCK_ADDRESS,
   WNATIVE_ADDRESS,
+  Exchanger,
 } from '@sushiswap/sdk'
 import {
   ARGENT_WALLET_DETECTOR_ABI,
@@ -60,6 +61,7 @@ import ZENKO_ABI from '../constants/abis/zenko.json'
 import { getContract } from '../functions/contract'
 import { useActiveWeb3React } from './useActiveWeb3React'
 import { useMemo } from 'react'
+import { useUserConveyorUseRelay } from '../state/user/hooks'
 
 const UNI_FACTORY_ADDRESS = '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f'
 
@@ -153,7 +155,10 @@ export function useMiniChefContract(withSignerIfPossible?: boolean): Contract | 
 
 export function useFactoryContract(): Contract | null {
   const { chainId } = useActiveWeb3React()
-  return useContract(chainId && FACTORY_ADDRESS[chainId], FACTORY_ABI, false)
+  const [useConveyor] = useUserConveyorUseRelay()
+  const exchanger = !useConveyor ? Exchanger.SUSHI : Exchanger.CONVEYOR
+
+  return useContract(chainId && FACTORY_ADDRESS[exchanger][chainId], FACTORY_ABI, false)
 }
 
 export function useRouterContract(useArcher = false, withSignerIfPossible?: boolean): Contract | null {
@@ -223,16 +228,15 @@ export function useZenkoContract(withSignerIfPossible?: boolean): Contract | nul
 }
 
 /**
- * Interact with Automata Conveyor v2 contract. Use chainId if later we move
- * the address into customized sushiswap-sdk.
+ * Interact with Automata Conveyor v2 router contract
  * @see `useRouterContract`
- * @returns Contract. Null if the contract is not found.
+ * @returns Contract. Null if the contract is not match.
  */
 export function useConveyorRouterContract(): Contract | null {
-  // const { chainId } = useActiveWeb3React()
+  const { chainId } = useActiveWeb3React()
 
   const abi = CONVEYOR_V2_ROUTER_ABI
-  const address = CONVEYOR_V2_ROUTER_ADDRESS
+  const address = CONVEYOR_V2_ROUTER_ADDRESS[chainId]
 
   return useContract(address, abi)
 }
