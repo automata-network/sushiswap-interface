@@ -1,6 +1,17 @@
 import { AppDispatch, AppState } from '..'
 import { BASES_TO_TRACK_LIQUIDITY_FOR, PINNED_PAIRS } from '../../config/routing'
-import { ChainId, FACTORY_ADDRESS, JSBI, Pair, Percent, Token, computePairAddress } from '@sushiswap/sdk'
+import {
+  ChainId,
+  FACTORY_ADDRESS,
+  JSBI,
+  Pair,
+  Percent,
+  Token,
+  computePairAddress,
+  Exchanger,
+  TokenType,
+  LIQUIDITY_TOKEN_IDENTITY,
+} from '@sushiswap/sdk'
 import {
   SerializedPair,
   SerializedToken,
@@ -219,18 +230,26 @@ export function useURLWarningToggle(): () => void {
  * Given two tokens return the liquidity token that represents its liquidity shares
  * @param tokenA one of the two tokens
  * @param tokenB the other token
+ * @param isConveyorPair wether we should return liquidity pair in Sushi or Conveyor pool
  */
-export function toV2LiquidityToken([tokenA, tokenB]: [Token, Token]): Token {
+export function toV2LiquidityToken([tokenA, tokenB]: [Token, Token], isConveyorPair: boolean = false): Token {
   if (tokenA.chainId !== tokenB.chainId) throw new Error('Not matching chain IDs')
   if (tokenA.equals(tokenB)) throw new Error('Tokens cannot be equal')
-  if (!FACTORY_ADDRESS[tokenA.chainId]) throw new Error('No V2 factory address on this chain')
+
+  const exchanger = !isConveyorPair ? Exchanger.SUSHI : Exchanger.CONVEYOR
+  if (!FACTORY_ADDRESS[exchanger][tokenA.chainId]) throw new Error('No V2 factory address on this chain')
+
+  const tokenType = !isConveyorPair ? TokenType.UNISWAP : TokenType.CONVEYOR
+  const [tokenSymbol, tokenName] = LIQUIDITY_TOKEN_IDENTITY[tokenType]
 
   return new Token(
     tokenA.chainId,
-    computePairAddress({ factoryAddress: FACTORY_ADDRESS[tokenA.chainId], tokenA, tokenB }),
+    computePairAddress({ factoryAddress: FACTORY_ADDRESS[exchanger][tokenA.chainId], tokenA, tokenB, isConveyorPair }),
     18,
-    'UNI-V2',
-    'Uniswap V2'
+    // 'UNI-V2',
+    // 'Uniswap V2'
+    tokenSymbol,
+    tokenName
   )
 }
 

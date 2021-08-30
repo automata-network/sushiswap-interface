@@ -1,7 +1,7 @@
 import { ChainId, CurrencyAmount, JSBI, NATIVE, Pair } from '@sushiswap/sdk'
 import React, { useMemo } from 'react'
 import { classNames, currencyId } from '../../../functions'
-import { toV2LiquidityToken, useTrackedTokenPairs } from '../../../state/user/hooks'
+import { toV2LiquidityToken, useTrackedTokenPairs, useUserConveyorUseRelay } from '../../../state/user/hooks'
 
 import Alert from '../../../components/Alert'
 import { BIG_INT_ZERO } from '../../../constants'
@@ -35,15 +35,17 @@ export default function Pool() {
 
   const userEthBalance = useETHBalances(account ? [account] : [])?.[account ?? '']
 
+  const [useConveyor] = useUserConveyorUseRelay()
+
   // fetch the user's balances of all tracked V2 LP tokens
   const trackedTokenPairs = useTrackedTokenPairs()
   const tokenPairsWithLiquidityTokens = useMemo(
     () =>
       trackedTokenPairs.map((tokens) => ({
-        liquidityToken: toV2LiquidityToken(tokens),
+        liquidityToken: toV2LiquidityToken(tokens, useConveyor),
         tokens,
       })),
-    [trackedTokenPairs]
+    [trackedTokenPairs, useConveyor]
   )
   const liquidityTokens = useMemo(
     () => tokenPairsWithLiquidityTokens.map((tpwlt) => tpwlt.liquidityToken),
