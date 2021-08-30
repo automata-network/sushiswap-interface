@@ -452,17 +452,20 @@ export default function Remove() {
           parsedAmounts[Field.CURRENCY_A]?.toSignificant(3),
           parsedAmounts[Field.CURRENCY_B]?.toSignificant(3),
         ]
-        addTransaction(response.txnHash, {
-          summary: `Remove ${parsedAmountA} ${currencyA?.symbol} and ${parsedAmountB} ${currencyB?.symbol}`,
-          // 'Add ' +
-          // parsedAmounts[Field.CURRENCY_A]?.toSignificant(3) +
-          // ' ' +
-          // currencies[Field.CURRENCY_A]?.symbol +
-          // ' and ' +
-          // parsedAmounts[Field.CURRENCY_B]?.toSignificant(3) +
-          // ' ' +
-          // currencies[Field.CURRENCY_B]?.symbol
-        })
+        addTransaction(
+          { hash: response.txnHash },
+          {
+            summary: `Remove ${parsedAmountA} ${currencyA?.symbol} and ${parsedAmountB} ${currencyB?.symbol}`,
+            // 'Add ' +
+            // parsedAmounts[Field.CURRENCY_A]?.toSignificant(3) +
+            // ' ' +
+            // currencies[Field.CURRENCY_A]?.symbol +
+            // ' and ' +
+            // parsedAmounts[Field.CURRENCY_B]?.toSignificant(3) +
+            // ' ' +
+            // currencies[Field.CURRENCY_B]?.symbol
+          }
+        )
 
         console.log('---remove---')
         console.log('response: ', response)

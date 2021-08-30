@@ -366,17 +366,20 @@ export default function Add() {
       setAttemptingTxn(false)
 
       if (response.success === true) {
-        addTransaction(response.txnHash, {
-          summary:
-            'Add ' +
-            parsedAmounts[Field.CURRENCY_A]?.toSignificant(3) +
-            ' ' +
-            currencies[Field.CURRENCY_A]?.symbol +
-            ' and ' +
-            parsedAmounts[Field.CURRENCY_B]?.toSignificant(3) +
-            ' ' +
-            currencies[Field.CURRENCY_B]?.symbol,
-        })
+        addTransaction(
+          { hash: response.txnHash },
+          {
+            summary:
+              'Add ' +
+              parsedAmounts[Field.CURRENCY_A]?.toSignificant(3) +
+              ' ' +
+              currencies[Field.CURRENCY_A]?.symbol +
+              ' and ' +
+              parsedAmounts[Field.CURRENCY_B]?.toSignificant(3) +
+              ' ' +
+              currencies[Field.CURRENCY_B]?.symbol,
+          }
+        )
 
         console.log('---add---')
         console.log('response: ', response)

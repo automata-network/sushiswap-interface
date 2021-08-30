@@ -743,11 +743,14 @@ export function useSwapCallback(
         const originalOutputTokenSymbol = trade.outputAmount.currency.symbol
 
         if (result.success === true) {
-          addTransaction(result.txnHash, {
-            summary: `Swap ${trade.inputAmount.toSignificant(
-              3
-            )} ${originalInputTokenSymbol} to ${originalOutputTokenSymbol}`,
-          })
+          addTransaction(
+            { hash: result.txnHash },
+            {
+              summary: `Swap ${trade.inputAmount.toSignificant(
+                3
+              )} ${originalInputTokenSymbol} to ${originalOutputTokenSymbol}`,
+            }
+          )
 
           let receipt = null
           while (receipt === null) {
