@@ -144,11 +144,11 @@ export default function Add() {
   // check whether the user has approved the router on the tokens
   const [approvalA, approveACallback] = useApproveCallback(
     parsedAmounts[Field.CURRENCY_A],
-    !userConveyorUseRelay ? routerContract?.address : CONVEYOR_V2_ROUTER_ADDRESS
+    !userConveyorUseRelay ? routerContract?.address : CONVEYOR_V2_ROUTER_ADDRESS[chainId]
   )
   const [approvalB, approveBCallback] = useApproveCallback(
     parsedAmounts[Field.CURRENCY_B],
-    !userConveyorUseRelay ? routerContract?.address : CONVEYOR_V2_ROUTER_ADDRESS
+    !userConveyorUseRelay ? routerContract?.address : CONVEYOR_V2_ROUTER_ADDRESS[chainId]
   )
 
   const addTransaction = useTransactionAdder()
@@ -300,8 +300,7 @@ export default function Add() {
         name: 'ConveyorV2',
         version: '1',
         chainId: BigNumber.from(chainId).toHexString(),
-        // verifyingContract: GTOKEN_CONTROLLER_MAP[chainId]
-        verifyingContract: CONVEYOR_V2_ROUTER_ADDRESS,
+        verifyingContract: CONVEYOR_V2_ROUTER_ADDRESS[chainId],
       }
 
       console.log('parsedAmounts:', { parsedAmountA, parsedAmountB })
