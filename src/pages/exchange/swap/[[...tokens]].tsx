@@ -306,7 +306,7 @@ export default function Swap() {
           tradeToConfirm,
           showConfirm,
           swapErrorMessage: undefined,
-          txHash: _hash as string,
+          txHash: _hash,
         })
 
         ReactGA.event({
