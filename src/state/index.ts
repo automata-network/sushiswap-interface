@@ -14,7 +14,21 @@ const persistConfig: any = {
   key: 'root',
   whitelist: PERSISTED_KEYS,
   storage,
-  stateReconciler: false,
+  stateReconciler: (inboundState, originalState, reducedState, { debug }) => {
+    // Restore user state from redux persist if any
+    let newState = { ...reducedState }
+
+    if (inboundState && typeof inboundState === 'object') {
+      Object.keys(inboundState).forEach((key) => {
+        // ignore other state data other than user
+        if (key === '_persist' || key !== 'user') return
+
+        newState[key] = inboundState[key]
+      })
+    }
+
+    return newState
+  },
 }
 
 const persistedReducer = persistReducer(persistConfig, reducer)

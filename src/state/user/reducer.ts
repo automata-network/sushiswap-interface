@@ -184,6 +184,7 @@ export default createReducer(initialState, (builder) =>
     })
     .addCase(updateUserConveyorUseRelay, (state, action) => {
       state.userConveyorUseRelay = action.payload.userConveyorUseRelay
+      state.timestamp = currentTimestamp()
     })
     .addCase(updateUserConveyorGasEstimation, (state, action) => {
       state.userConveyorGasEstimation = action.payload.userConveyorGasEstimation
