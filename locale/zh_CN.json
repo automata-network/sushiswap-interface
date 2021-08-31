@@ -314,6 +314,7 @@
   "Transaction Settings": "",
   "Transaction Submitted": "",
   "Transaction deadline": "",
+  "Transactions will be protected by Automata Conveyor from potential MEV": "",
   "Try enabling multi-hop trades": "",
   "Turn On Expert Mode": "",
   "Unknown error{0}. Try increasing your slippage tolerance.": "",
