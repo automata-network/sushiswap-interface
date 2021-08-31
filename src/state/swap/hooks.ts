@@ -33,6 +33,7 @@ import {
   useUserArcherGasEstimate,
   useUserArcherGasPrice,
   useUserArcherTipManualOverride,
+  useUserConveyorGasEstimation,
   useUserSingleHopOnly,
   useUserSlippageTolerance,
 } from '../user/hooks'
@@ -49,6 +50,8 @@ import useENS from '../../hooks/useENS'
 import { useLingui } from '@lingui/react'
 import useParsedQueryString from '../../hooks/useParsedQueryString'
 import useSwapSlippageTolerance from '../../hooks/useSwapSlippageTollerence'
+import { calculateConveyorFeeOnToken } from '../../functions/conveyorFee'
+import { HOP_ADDITIONAL_GAS, SWAP_GAS_LIMIT } from '../../constants'
 
 export function useSwapState(): AppState['swap'] {
   return useAppSelector((state) => state.swap)
@@ -230,10 +233,37 @@ export function useDerivedSwapInfo(
   const [userGasPrice] = useUserArcherGasPrice()
   const [userTipManualOverride, setUserTipManualOverride] = useUserArcherTipManualOverride()
 
-  // if (doConveyor) {
+  const [, setUserConveyorGasEstimation] = useUserConveyorGasEstimation()
+
   //   Set all Conveyor-specific steps here
-  //   console.log('using conveyor')
-  // }
+  if (doConveyor) {
+    //
+  }
+
+  // Calculate gas fee estimation when user use Conveyor v2 relay to swap
+  useEffect(() => {
+    ;(() => {
+      if (!doConveyor) return
+
+      library?.getGasPrice().then((value) => {
+        if (typeof chainId === 'undefined') return
+        if (typeof v2Trade === 'undefined' || v2Trade === null) return
+        if (typeof inputCurrencyId === 'undefined') return
+        if (typeof currencies[Field.INPUT] === 'undefined') return
+        if (typeof value === 'undefined') return
+
+        const gasLimit = SWAP_GAS_LIMIT + (v2Trade.route.path.length - 2) * HOP_ADDITIONAL_GAS
+        calculateConveyorFeeOnToken(
+          chainId,
+          inputCurrencyId,
+          currencies[Field.INPUT]!.decimals,
+          value.mul(gasLimit)
+        ).then((fee) => {
+          setUserConveyorGasEstimation(fee.toString())
+        })
+      })
+    })()
+  }, [doConveyor, v2Trade, chainId, currencies, inputCurrencyId, library, setUserConveyorGasEstimation])
 
   useEffect(() => {
     if (doArcher) {

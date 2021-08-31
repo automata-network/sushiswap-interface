@@ -20,6 +20,7 @@ import {
   updateUserSingleHopOnly,
   updateUserSlippageTolerance,
   updateUserConveyorUseRelay,
+  updateUserConveyorGasEstimation,
 } from './actions'
 
 import { createReducer } from '@reduxjs/toolkit'
@@ -67,6 +68,7 @@ export interface UserState {
   userArcherTipManualOverride: boolean // is user manually entering tip
 
   userConveyorUseRelay: boolean
+  userConveyorGasEstimation: string
 }
 
 function pairKey(token0Address: string, token1Address: string) {
@@ -90,6 +92,7 @@ export const initialState: UserState = {
   userArcherGasEstimate: DEFAULT_ARCHER_GAS_ESTIMATE.toString(),
   userArcherTipManualOverride: false,
   userConveyorUseRelay: false,
+  userConveyorGasEstimation: '',
 }
 
 export default createReducer(initialState, (builder) =>
@@ -181,5 +184,8 @@ export default createReducer(initialState, (builder) =>
     })
     .addCase(updateUserConveyorUseRelay, (state, action) => {
       state.userConveyorUseRelay = action.payload.userConveyorUseRelay
+    })
+    .addCase(updateUserConveyorGasEstimation, (state, action) => {
+      state.userConveyorGasEstimation = action.payload.userConveyorGasEstimation
     })
 )

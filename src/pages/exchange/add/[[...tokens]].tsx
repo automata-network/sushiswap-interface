@@ -3,13 +3,14 @@ import { AutoRow, RowBetween } from '../../../components/Row'
 import Button, { ButtonError } from '../../../components/Button'
 import { Currency, CurrencyAmount, Percent, WNATIVE, currencyEquals } from '@sushiswap/sdk'
 import { ONE_BIPS, ZERO_PERCENT, CREATE_PAIR_GAS_LIMIT, ADD_LIQUIDITY_GAS_LIMIT } from '../../../constants'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import TransactionConfirmationModal, { ConfirmationModalContent } from '../../../modals/TransactionConfirmationModal'
 import { calculateGasMargin, calculateSlippageAmount } from '../../../functions/trade'
 import { currencyId, maxAmountSpend } from '../../../functions/currency'
 import { useDerivedMintInfo, useMintActionHandlers, useMintState } from '../../../state/mint/hooks'
 import {
   useExpertModeManager,
+  useUserConveyorGasEstimation,
   useUserConveyorUseRelay,
   useUserSlippageToleranceWithDefault,
 } from '../../../state/user/hooks'
@@ -52,6 +53,8 @@ import { CONVEYOR_V2_ROUTER_ADDRESS } from '../../../constants/abis/conveyor-v2'
 import { calculateConveyorFeeOnToken } from '../../../functions/conveyorFee'
 import { splitSignature } from '@ethersproject/bytes'
 import { CONVEYOR_RELAYER_URI } from '../../../config/conveyor'
+import ConveyorGasFee from '../../../features/trade/ConveyorGasFee'
+import { BigNumber as JSBigNumber } from 'bignumber.js'
 
 const DEFAULT_ADD_V2_SLIPPAGE_TOLERANCE = new Percent(50, 10_000)
 
@@ -481,6 +484,24 @@ export default function Add() {
   //   { addIsUnsupported, isValid, approvalA, approvalB },
   //   approvalA === ApprovalState.APPROVED && approvalB === ApprovalState.APPROVED
   // )
+
+  // Conveyor gas fee estimation
+  const [conveyorGasEstimation, setConveyorGasEstimation] = useState<string | undefined>(undefined)
+  const [userConveyorGasEstimation] = useUserConveyorGasEstimation()
+  useEffect(() => {
+    ;(() => {
+      if (!userConveyorUseRelay) return
+      if (userConveyorGasEstimation === '') return
+      if (typeof currencyA === 'undefined') return
+
+      const gasEstimation = new JSBigNumber(userConveyorGasEstimation).div(
+        new JSBigNumber(10).pow(currencyA!.decimals).toString()
+      )
+
+      setConveyorGasEstimation(gasEstimation.toString())
+    })()
+  }, [userConveyorUseRelay, currencyA, userConveyorGasEstimation])
+
   return (
     <>
       <Head>
@@ -572,18 +593,32 @@ export default function Add() {
               )}
 
               <div>
-                <CurrencyInputPanel
-                  value={formattedAmounts[Field.CURRENCY_A]}
-                  onUserInput={onFieldAInput}
-                  onMax={() => {
-                    onFieldAInput(maxAmounts[Field.CURRENCY_A]?.toExact() ?? '')
-                  }}
-                  onCurrencySelect={handleCurrencyASelect}
-                  showMaxButton={!atMaxAmounts[Field.CURRENCY_A]}
-                  currency={currencies[Field.CURRENCY_A]}
-                  id="add-liquidity-input-tokena"
-                  showCommonBases
-                />
+                <div>
+                  <CurrencyInputPanel
+                    value={formattedAmounts[Field.CURRENCY_A]}
+                    onUserInput={onFieldAInput}
+                    onMax={() => {
+                      onFieldAInput(maxAmounts[Field.CURRENCY_A]?.toExact() ?? '')
+                    }}
+                    onCurrencySelect={handleCurrencyASelect}
+                    showMaxButton={!atMaxAmounts[Field.CURRENCY_A]}
+                    currency={currencies[Field.CURRENCY_A]}
+                    id="add-liquidity-input-tokena"
+                    showCommonBases
+                  />
+                  {currencies[Field.CURRENCY_A] &&
+                    currencies[Field.CURRENCY_B] &&
+                    pairState !== PairState.INVALID &&
+                    userConveyorUseRelay && (
+                      <div className="p-1 -mt-2 rounded-b-md bg-dark-800">
+                        <ConveyorGasFee
+                          gasFee={conveyorGasEstimation}
+                          inputSymbol={currencyA.symbol}
+                          className="bg-dark-900"
+                        />
+                      </div>
+                    )}
+                </div>
 
                 <AutoColumn justify="space-between" className="py-2.5">
                   <AutoRow justify={isExpertMode ? 'space-between' : 'flex-start'} style={{ padding: '0 1rem' }}>

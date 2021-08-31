@@ -30,6 +30,7 @@ import {
   updateUserSingleHopOnly,
   updateUserSlippageTolerance,
   updateUserConveyorUseRelay,
+  updateUserConveyorGasEstimation,
 } from './actions'
 import { shallowEqual, useDispatch, useSelector } from 'react-redux'
 import { useAppDispatch, useAppSelector } from '../hooks'
@@ -436,4 +437,21 @@ export function useUserConveyorUseRelay(): [boolean, (newUseRelay: boolean) => v
   )
 
   return [useRelay, setUseRelay]
+}
+
+export function useUserConveyorGasEstimation(): [string, (gasFee: string) => void] {
+  const dispatch = useAppDispatch()
+
+  const userConveyorGasEstimation = useSelector<AppState, AppState['user']['userConveyorGasEstimation']>(
+    (state) => state.user.userConveyorGasEstimation
+  )
+
+  const setUserConveyorGasEstimation = useCallback(
+    (gasFee: string) => {
+      dispatch(updateUserConveyorGasEstimation({ userConveyorGasEstimation: gasFee }))
+    },
+    [dispatch]
+  )
+
+  return [userConveyorGasEstimation, setUserConveyorGasEstimation]
 }
