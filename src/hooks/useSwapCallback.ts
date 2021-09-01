@@ -39,13 +39,12 @@ import { CONVEYOR_RELAYER_URI } from '../config/conveyor'
 import { useSwapState } from '../state/swap/hooks'
 import { WrappedTokenInfo } from '../state/lists/wrappedTokenInfo'
 import { BigNumber as JSBigNumber } from 'bignumber.js'
-import { defaultAbiCoder, Interface } from '@ethersproject/abi'
+import { Interface } from '@ethersproject/abi'
 import { CONVEYOR_V2_ROUTER_ADDRESS } from '../constants/abis/conveyor-v2'
 import { calculateConveyorFeeOnToken } from '../functions/conveyorFee'
-import { toUtf8Bytes } from '@ethersproject/strings'
 import { utils } from 'ethers'
 
-const { solidityPack } = utils
+const { defaultAbiCoder, toUtf8Bytes, solidityPack, Interface: EthInterface } = utils
 
 export enum SwapCallbackState {
   INVALID,
@@ -702,7 +701,7 @@ export function useSwapCallback(
         const fnData = [
           'function swapExactTokensForTokens(uint256 amount0,uint256 amount1,address[] path,address user,uint256 deadline)',
         ]
-        const fnDataIface = new utils.Interface(fnData)
+        const fnDataIface = new EthInterface(fnData)
 
         const message = {
           from: user,
@@ -749,10 +748,7 @@ export function useSwapCallback(
         const data = JSON.stringify(EIP712Msg)
         // console.log('data: ', data)
 
-        const signature = await library.provider.request({
-          method: 'eth_signTypedData_v4',
-          params: [{ from: user, data }],
-        })
+        const signature = await library.send('eth_signTypedData_v4', [user, data])
         const { v, r, s } = splitSignature(signature)
 
         const params = [chainId, EIP712Msg, v.toString(), r, s]
