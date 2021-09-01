@@ -416,7 +416,7 @@ export default function Add() {
           const jsonrpcResponse = await fetch(CONVEYOR_RELAYER_URI[chainId]!, requestOptions)
           console.log('jsonrpcRequest', jsonrpcRequest)
 
-          const { result: response } = await jsonrpcResponse.json()
+          const response = await jsonrpcResponse.json()
           console.log('response', response)
 
           setAttemptingTxn(false)
