@@ -412,11 +412,12 @@ export default function Add() {
             },
             body: JSON.stringify(jsonrpcRequest),
           }
-          // console.log(jsonrpcRequest)
           // const environment = process.env.REACT_APP_ENVIRONMENT ? process.env.REACT_APP_ENVIRONMENT : 'staging'
           const jsonrpcResponse = await fetch(CONVEYOR_RELAYER_URI[chainId]!, requestOptions)
+          console.log('jsonrpcRequest', jsonrpcRequest)
 
           const { result: response } = await jsonrpcResponse.json()
+          console.log('response', response)
 
           setAttemptingTxn(false)
 
