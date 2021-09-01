@@ -55,6 +55,9 @@ import { splitSignature } from '@ethersproject/bytes'
 import { CONVEYOR_RELAYER_URI } from '../../../config/conveyor'
 import ConveyorGasFee from '../../../features/trade/ConveyorGasFee'
 import { BigNumber as JSBigNumber } from 'bignumber.js'
+import { utils } from 'ethers'
+
+const { keccak256, defaultAbiCoder, toUtf8Bytes, Interface } = utils
 
 const DEFAULT_ADD_V2_SLIPPAGE_TOLERANCE = new Percent(50, 10_000)
 
@@ -243,8 +246,10 @@ export default function Add() {
           }
         })
     } else {
+      console.log('conveyorRouterContract', conveyorRouterContract)
       // Use ConveyorV2 relay for add
       const nonce: BigNumber = await conveyorRouterContract.nonces(account)
+      console.log('nonce', nonce)
 
       const { [Field.CURRENCY_A]: parsedAmountA, [Field.CURRENCY_B]: parsedAmountB } = parsedAmounts
       if (!parsedAmountA || !parsedAmountB || !currencyA || !currencyB || !deadline) {
@@ -285,6 +290,16 @@ export default function Add() {
         { name: 'verifyingContract', type: 'address' },
       ]
 
+      const Forwarder = [
+        { name: 'from', type: 'address' },
+        { name: 'feeToken', type: 'address' },
+        { name: 'maxTokenAmount', type: 'uint256' },
+        { name: 'deadline', type: 'uint256' },
+        { name: 'nonce', type: 'uint256' },
+        { name: 'data', type: 'bytes' },
+        { name: 'hashedPayload', type: 'bytes32' },
+      ]
+
       const AddLiquidity = [
         { name: 'tokenA', type: 'address' },
         { name: 'tokenB', type: 'address' },
@@ -293,10 +308,7 @@ export default function Add() {
         { name: 'amountAMin', type: 'uint256' },
         { name: 'amountBMin', type: 'uint256' },
         { name: 'user', type: 'address' },
-        { name: 'nonce', type: 'uint256' },
         { name: 'deadline', type: 'uint256' },
-        { name: 'feeAmount', type: 'uint256' },
-        { name: 'feeToken', type: 'address' },
       ]
 
       const domain = {
@@ -314,7 +326,7 @@ export default function Add() {
       // console.log('parsedAmounts:', { parsedAmountA, parsedAmountB })
       // console.log('amountsMin:', [amountsMin[Field.CURRENCY_A].toString(), amountsMin[Field.CURRENCY_B].toString()])
 
-      const message = {
+      const payload = {
         tokenA: currencyIdA,
         tokenB: currencyIdB,
         amountADesired: BigNumber.from(amountADesired).toHexString(),
@@ -322,72 +334,120 @@ export default function Add() {
         amountAMin: BigNumber.from(amountAMin).toHexString(),
         amountBMin: BigNumber.from(amountBMin).toHexString(),
         user: account,
-        nonce: nonce.toHexString(),
         deadline: deadline.toHexString(),
-        feeAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
-        feeToken: currencyIdA,
       }
+
+      const fnData = [
+        'function addLiquidity(address tokenA,address tokenB,uint256 amountADesired,uint256 amountBDesired,uint256 amountAMin,uint256 amountBMin,address user,uint256 deadline)',
+      ]
+      const fnDataIface = new Interface(fnData)
+
+      const message = {
+        from: account,
+        feeToken: currencyIdA,
+        maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+        deadline: deadline.toHexString(),
+        nonce: nonce.toHexString(),
+        data: fnDataIface.functions.addLiquidity.encode(Object.entries(payload).map(([_, value]) => value)),
+        hashedPayload: keccak256(
+          defaultAbiCoder.encode(
+            ['bytes', 'address', 'address', 'uint256', 'uint256', 'uint256', 'uint256', 'address', 'uint256'],
+            [
+              keccak256(
+                toUtf8Bytes(
+                  'addLiquidity(address tokenA,address tokenB,uint256 amountADesired,uint256 amountBDesired,uint256 amountAMin,uint256 amountBMin,address user,uint256 deadline)'
+                )
+              ),
+              ...Object.entries(payload).map(([_, value]) => value),
+            ]
+          )
+        ),
+        // tokenA: currencyIdA,
+        // tokenB: currencyIdB,
+        // amountADesired: BigNumber.from(amountADesired).toHexString(),
+        // amountBDesired: BigNumber.from(amountBDesired).toHexString(),
+        // amountAMin: BigNumber.from(amountAMin).toHexString(),
+        // amountBMin: BigNumber.from(amountBMin).toHexString(),
+        // user: account,
+        // nonce: nonce.toHexString(),
+        // deadline: deadline.toHexString(),
+        // feeAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+        // feeToken: currencyIdA,
+      }
+
+      console.log('message', message)
 
       const EIP712Msg = {
         types: {
           EIP712Domain,
-          AddLiquidity,
+          Forwarder,
+          // AddLiquidity,
         },
         domain,
-        primaryType: 'AddLiquidity',
+        primaryType: 'Forwarder',
         message,
       }
 
       const data = JSON.stringify(EIP712Msg)
       setAttemptingTxn(true)
-      const signature = await library.send('eth_signTypedData_v4', [account, data])
-      const { v, r, s } = splitSignature(signature)
+      library
+        .send('eth_signTypedData_v4', [account, data])
+        .then(async (signature) => {
+          const { v, r, s } = splitSignature(signature)
 
-      const params = [chainId, EIP712Msg, v.toString(), r, s]
-      // console.log('params: ', params)
+          const params = [chainId, EIP712Msg, v.toString(), r, s]
+          // console.log('params: ', params)
 
-      const jsonrpcRequest = {
-        jsonrpc: '2.0',
-        method: '/v2/addLiquidity',
-        id: 1,
-        params,
-      }
-
-      const requestOptions = {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(jsonrpcRequest),
-      }
-      // console.log(jsonrpcRequest)
-      // const environment = process.env.REACT_APP_ENVIRONMENT ? process.env.REACT_APP_ENVIRONMENT : 'staging'
-      const jsonrpcResponse = await fetch(CONVEYOR_RELAYER_URI[chainId]!, requestOptions)
-
-      const { result: response } = await jsonrpcResponse.json()
-
-      setAttemptingTxn(false)
-
-      if (response.success === true) {
-        addTransaction(
-          { hash: response.txnHash },
-          {
-            summary:
-              'Add ' +
-              parsedAmounts[Field.CURRENCY_A]?.toSignificant(3) +
-              ' ' +
-              currencies[Field.CURRENCY_A]?.symbol +
-              ' and ' +
-              parsedAmounts[Field.CURRENCY_B]?.toSignificant(3) +
-              ' ' +
-              currencies[Field.CURRENCY_B]?.symbol,
+          const jsonrpcRequest = {
+            jsonrpc: '2.0',
+            method: '/v2/metaTx/addLiquidity',
+            id: 1,
+            params,
           }
-        )
 
-        setTxHash(response.txnHash)
-      } else {
-        throw new Error(response.errorMessage)
-      }
+          const requestOptions = {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(jsonrpcRequest),
+          }
+          // const environment = process.env.REACT_APP_ENVIRONMENT ? process.env.REACT_APP_ENVIRONMENT : 'staging'
+          const jsonrpcResponse = await fetch(CONVEYOR_RELAYER_URI[chainId]!, requestOptions)
+          console.log('jsonrpcRequest', jsonrpcRequest)
+
+          const response = await jsonrpcResponse.json()
+          console.log('response', response)
+
+          setAttemptingTxn(false)
+
+          if (response.success === true) {
+            addTransaction(
+              { hash: response.txnHash },
+              {
+                summary:
+                  'Add ' +
+                  parsedAmounts[Field.CURRENCY_A]?.toSignificant(3) +
+                  ' ' +
+                  currencies[Field.CURRENCY_A]?.symbol +
+                  ' and ' +
+                  parsedAmounts[Field.CURRENCY_B]?.toSignificant(3) +
+                  ' ' +
+                  currencies[Field.CURRENCY_B]?.symbol,
+              }
+            )
+
+            setTxHash(response.txnHash)
+          } else {
+            throw new Error(response.errorMessage)
+          }
+        })
+        .catch((error) => {
+          setAttemptingTxn(false)
+          if (error?.code !== 4001) {
+            console.error(error)
+          }
+        })
     }
   }
 

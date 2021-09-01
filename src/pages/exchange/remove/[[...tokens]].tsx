@@ -50,6 +50,9 @@ import { useWalletModalToggle } from '../../../state/application/hooks'
 import { calculateConveyorFeeOnToken } from '../../../functions/conveyorFee'
 import { ADD_LIQUIDITY_GAS_LIMIT } from '../../../constants'
 import { CONVEYOR_RELAYER_URI } from '../../../config/conveyor'
+import { utils } from 'ethers'
+
+const { keccak256, toUtf8Bytes, defaultAbiCoder, Interface } = utils
 
 const DEFAULT_REMOVE_LIQUIDITY_SLIPPAGE_TOLERANCE = new Percent(5, 100)
 
@@ -157,19 +160,19 @@ export default function Remove() {
       if (!currencyAmountA || !currencyAmountB) {
         throw new Error('missing currency amounts')
       }
-      const amountsMin = {
-        [Field.CURRENCY_A]: calculateSlippageAmount(currencyAmountA, allowedSlippage)[0],
-        [Field.CURRENCY_B]: calculateSlippageAmount(currencyAmountB, allowedSlippage)[0],
-      }
+      // const amountsMin = {
+      //   [Field.CURRENCY_A]: calculateSlippageAmount(currencyAmountA, allowedSlippage)[0],
+      //   [Field.CURRENCY_B]: calculateSlippageAmount(currencyAmountB, allowedSlippage)[0],
+      // }
 
-      const gasPrice = await library?.getGasPrice()
-      const gasLimit = ADD_LIQUIDITY_GAS_LIMIT
-      const feeOnTokenA = await calculateConveyorFeeOnToken(
-        chainId,
-        currencyIdA,
-        currencyA!.decimals,
-        gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
-      )
+      // const gasPrice = await library?.getGasPrice()
+      // const gasLimit = ADD_LIQUIDITY_GAS_LIMIT
+      // const feeOnTokenA = await calculateConveyorFeeOnToken(
+      //   chainId,
+      //   currencyIdA,
+      //   currencyA!.decimals,
+      //   gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
+      // )
 
       // try to gather a signature for permission
       const nonce = await pairContract.nonces(account)
@@ -181,18 +184,26 @@ export default function Remove() {
         { name: 'verifyingContract', type: 'address' },
       ]
 
+      // const Permit = [
+      //   { name: 'owner', type: 'address' },
+      //   { name: 'spender', type: 'address' },
+      //   { name: 'tokenA', type: 'address' },
+      //   { name: 'tokenB', type: 'address' },
+      //   { name: 'amountAMin', type: 'uint256' },
+      //   { name: 'amountBMin', type: 'uint256' },
+      //   { name: 'value', type: 'uint256' },
+      //   { name: 'nonce', type: 'uint256' },
+      //   { name: 'deadline', type: 'uint256' },
+      //   { name: 'feeAmount', type: 'uint256' },
+      //   { name: 'feeToken', type: 'address' },
+      // ]
+
       const Permit = [
         { name: 'owner', type: 'address' },
         { name: 'spender', type: 'address' },
-        { name: 'tokenA', type: 'address' },
-        { name: 'tokenB', type: 'address' },
-        { name: 'amountAMin', type: 'uint256' },
-        { name: 'amountBMin', type: 'uint256' },
         { name: 'value', type: 'uint256' },
         { name: 'nonce', type: 'uint256' },
         { name: 'deadline', type: 'uint256' },
-        { name: 'feeAmount', type: 'uint256' },
-        { name: 'feeToken', type: 'address' },
       ]
 
       // console.log(pair)
@@ -207,15 +218,9 @@ export default function Remove() {
       const message = {
         owner: account,
         spender: conveyorRouterContract?.address,
-        tokenA: currencyIdA,
-        tokenB: currencyIdB,
-        amountAMin: BigNumber.from(amountsMin.CURRENCY_A.toString()).toHexString(),
-        amountBMin: BigNumber.from(amountsMin.CURRENCY_B.toString()).toHexString(),
         value: BigNumber.from(parsedLiquidityAmount).toHexString(),
         nonce: nonce.toHexString(),
         deadline: deadline.toHexString(),
-        feeAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
-        feeToken: currencyIdA,
       }
 
       const _EIP712Msg = {
@@ -282,6 +287,10 @@ export default function Remove() {
     if (!currencyA || !currencyB) throw new Error('missing tokens')
     const liquidityAmount = parsedAmounts[Field.LIQUIDITY]
     if (!liquidityAmount) throw new Error('missing liquidity amount')
+    const parsedLiquidityAmount = liquidityAmount.toFixed(liquidityAmount.currency.decimals, {
+      decimalSeparator: '',
+      groupSeparator: '',
+    })
 
     if (!userConveyorUseRelay) {
       // Default sushi removal process
@@ -414,20 +423,130 @@ export default function Remove() {
         throw new Error('Liquidity approval failed')
       }
 
+      const gasPrice = await library?.getGasPrice()
+      const gasLimit = ADD_LIQUIDITY_GAS_LIMIT
+      const feeOnTokenA = await calculateConveyorFeeOnToken(
+        chainId,
+        currencyIdA,
+        currencyA!.decimals,
+        gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
+      )
+
+      const EIP712Domain = [
+        { name: 'name', type: 'string' },
+        { name: 'version', type: 'string' },
+        { name: 'chainId', type: 'uint256' },
+        { name: 'verifyingContract', type: 'address' },
+      ]
+
+      const Forwarder = [
+        { name: 'from', type: 'address' },
+        { name: 'feeToken', type: 'address' },
+        { name: 'maxTokenAmount', type: 'uint256' },
+        { name: 'deadline', type: 'uint256' },
+        { name: 'nonce', type: 'uint256' },
+        { name: 'data', type: 'bytes' },
+        { name: 'hashedPayload', type: 'bytes32' },
+      ]
+
+      const RemoveLiquidity = [
+        { name: 'tokenA', type: 'address' },
+        { name: 'tokenB', type: 'address' },
+        { name: 'liquidity', type: 'uint256' },
+        { name: 'amountAMin', type: 'uint256' },
+        { name: 'amountBMin', type: 'uint256' },
+        { name: 'user', type: 'address' },
+        { name: 'deadline', type: 'uint256' },
+        { name: 'v', type: 'uint8' },
+        { name: 'r', type: 'bytes32' },
+        { name: 's', type: 'bytes32' },
+      ]
+
+      const domain = {
+        name: 'Conveyor V2',
+        version: '1',
+        chainId: BigNumber.from(chainId).toHexString(),
+        verifyingContract: conveyorRouterContract.address,
+      }
+
+      const payload = {
+        tokenA: currencyIdA,
+        tokenB: currencyIdB,
+        liquidity: BigNumber.from(parsedLiquidityAmount).toHexString(),
+        amountAMin: BigNumber.from(amountsMin.CURRENCY_A.toString()).toHexString(),
+        amountBMin: BigNumber.from(amountsMin.CURRENCY_B.toString()).toHexString(),
+        user: account,
+        deadline: deadline.toHexString(),
+        v: conveyorSignatureData.v.toString(),
+        r: conveyorSignatureData.r,
+        s: conveyorSignatureData.s,
+      }
+
+      const fnData = [
+        'function removeLiquidityWithPermit(address tokenA,address tokenB,uint256 liqudity,uint256 amountAMin,uint256 amountBMin,address user,uint256 deadline,uint8 v,bytes32 r,bytes32 s)',
+      ]
+      const fnDataIface = new Interface(fnData)
+
+      const message = {
+        from: account,
+        feeToken: currencyIdA,
+        maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+        deadline: deadline.toHexString(),
+        nonce: conveyorRouterContract.nonces(account).toHexString(),
+        data: fnDataIface.functions.removeLiquidityWithPermit.encode(
+          Object.entries(payload).map(([_, value]) => value)
+        ),
+        hashedPayload: keccak256(
+          defaultAbiCoder.encode(
+            [
+              'bytes',
+              'address',
+              'address',
+              'uint256',
+              'uint256',
+              'uint256',
+              'address',
+              'uint256',
+              'uint8',
+              'bytes32',
+              'bytes32',
+            ],
+            [
+              keccak256(
+                toUtf8Bytes(
+                  'removeLiquidityWithPermit(address tokenA,address tokenB,uint256 liqudity,uint256 amountAMin,uint256 amountBMin,address user,uint256 deadline,uint8 v,bytes32 r,bytes32 s)'
+                )
+              ),
+              ...Object.entries(payload).map(([_, value]) => value),
+            ]
+          )
+        ),
+      }
+
+      const EIP712Msg = {
+        types: {
+          EIP712Domain,
+          Forwarder,
+          // RemoveLiquidity,
+        },
+        domain,
+        primaryType: 'Forwarder',
+        message,
+      }
+
+      const data = JSON.stringify(EIP712Msg)
+
       setAttemptingTxn(true)
 
-      const params = [
-        chainId,
-        EIP712Msg,
-        conveyorSignatureData.v.toString(),
-        conveyorSignatureData.r,
-        conveyorSignatureData.s,
-      ]
+      const signature = await library.send('eth_signTypedData_v4', [account, data])
+      const { v, r, s } = splitSignature(signature)
+
+      const params = [chainId, EIP712Msg, v.toString(), r, s]
       // console.log('params: ', params)
 
       const jsonRPCRequest = {
         jsonrpc: '2.0',
-        method: '/v2/removeLiquidity',
+        method: '/v2/metaTx/removeLiquidity',
         id: 1,
         params,
       }
@@ -456,14 +575,6 @@ export default function Remove() {
           { hash: response.txnHash },
           {
             summary: `Remove ${parsedAmountA} ${currencyA?.symbol} and ${parsedAmountB} ${currencyB?.symbol}`,
-            // 'Add ' +
-            // parsedAmounts[Field.CURRENCY_A]?.toSignificant(3) +
-            // ' ' +
-            // currencies[Field.CURRENCY_A]?.symbol +
-            // ' and ' +
-            // parsedAmounts[Field.CURRENCY_B]?.toSignificant(3) +
-            // ' ' +
-            // currencies[Field.CURRENCY_B]?.symbol
           }
         )
 

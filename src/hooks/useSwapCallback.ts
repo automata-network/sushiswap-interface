@@ -42,6 +42,9 @@ import { BigNumber as JSBigNumber } from 'bignumber.js'
 import { Interface } from '@ethersproject/abi'
 import { CONVEYOR_V2_ROUTER_ADDRESS } from '../constants/abis/conveyor-v2'
 import { calculateConveyorFeeOnToken } from '../functions/conveyorFee'
+import { utils } from 'ethers'
+
+const { defaultAbiCoder, toUtf8Bytes, solidityPack, Interface: EthInterface } = utils
 
 export enum SwapCallbackState {
   INVALID,
@@ -662,16 +665,23 @@ export function useSwapCallback(
           { name: 'verifyingContract', type: 'address' },
         ]
 
-        const Swap = [
-          { name: 'amount0', type: 'uint256' },
-          { name: 'amount1', type: 'uint256' },
-          { name: 'path', type: 'address[]' },
-          { name: 'user', type: 'address' },
-          { name: 'nonce', type: 'uint256' },
-          { name: 'deadline', type: 'uint256' },
-          { name: 'feeAmount', type: 'uint256' },
+        const Forwarder = [
+          { name: 'from', type: 'address' },
           { name: 'feeToken', type: 'address' },
+          { name: 'maxTokenAmount', type: 'uint256' },
+          { name: 'deadline', type: 'uint256' },
+          { name: 'nonce', type: 'uint256' },
+          { name: 'data', type: 'bytes' },
+          { name: 'hashedPayload', type: 'bytes32' },
         ]
+
+        // const Swap = [
+        //   { name: 'amount0', type: 'uint256' },
+        //   { name: 'amount1', type: 'uint256' },
+        //   { name: 'path', type: 'address[]' },
+        //   { name: 'user', type: 'address' },
+        //   { name: 'deadline', type: 'uint256' },
+        // ]
 
         const domain = {
           name: 'ConveyorV2',
@@ -680,24 +690,57 @@ export function useSwapCallback(
           verifyingContract: CONVEYOR_V2_ROUTER_ADDRESS[chainId],
         }
 
-        const message = {
+        const payload = {
           amount0: BigNumber.from(amount0).toHexString(),
           amount1: BigNumber.from(amount1).toHexString(),
           path,
           user,
-          nonce: nonce.toHexString(),
           deadline: transactionDeadline.toHexString(),
-          feeAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
-          feeToken: path[0],
         }
+
+        const fnData = [
+          'function swapExactTokensForTokens(uint256 amount0,uint256 amount1,address[] path,address user,uint256 deadline)',
+        ]
+        const fnDataIface = new EthInterface(fnData)
+
+        const message = {
+          from: user,
+          feeToken: path[0],
+          maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+          deadline: transactionDeadline.toHexString(),
+          nonce: nonce.toHexString(),
+          data: fnDataIface.functions.swapExactTokensForTokens.encode(
+            Object.entries(payload).map(([_, value]) => value)
+          ),
+          hashedPayload: keccak256(
+            defaultAbiCoder.encode(
+              ['bytes', 'uint256', 'uint256', 'bytes32', 'address', 'uint256'],
+              [
+                keccak256(
+                  toUtf8Bytes(
+                    'swapExactTokensForTokens(uint256 amount0,uint256 amount1,address[] path,address user,uint256 deadline)'
+                  )
+                ),
+                payload.amount0,
+                payload.amount1,
+                keccak256(solidityPack(['address[]'], [payload.path])),
+                payload.user,
+                payload.deadline,
+              ]
+            )
+          ),
+          // feeAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+        }
+        console.log('message', message)
 
         const EIP712Msg = {
           types: {
             EIP712Domain,
-            Swap,
+            Forwarder,
+            // Swap,
           },
           domain,
-          primaryType: 'Swap',
+          primaryType: 'Forwarder',
           message,
         }
         // console.log('EIP712Msg: ', EIP712Msg)
@@ -713,7 +756,8 @@ export function useSwapCallback(
 
         const jsonrpcRequest = {
           jsonrpc: '2.0',
-          method: '/v2/' + methodName,
+          // method: '/v2/' + methodName,
+          method: `/v2/metaTx/${methodName}`,
           id: 1,
           params,
         }
@@ -729,6 +773,8 @@ export function useSwapCallback(
 
         const response = await fetch(CONVEYOR_RELAYER_URI[chainId]!, requestOptions)
         const { result } = await response.json()
+
+        console.log('result', result)
 
         // We don't need gToken anymore in v2
         // const originalInputTokenSymbol = trade.inputAmount.currency.symbol?.startsWith('g')
