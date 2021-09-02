@@ -519,7 +519,7 @@ export default function Remove() {
                   'removeLiquidityWithPermit(address tokenA,address tokenB,uint256 liqudity,uint256 amountAMin,uint256 amountBMin,address user,uint256 deadline,uint8 v,bytes32 r,bytes32 s)'
                 )
               ),
-              ...Object.entries(payload).map(([_, value]) => value),
+              ...Object.entries({ ...removePayload, ...signaturePayload }).map(([_, value]) => value),
             ]
           )
         ),
