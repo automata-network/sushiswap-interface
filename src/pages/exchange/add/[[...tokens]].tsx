@@ -275,13 +275,15 @@ export default function Add() {
       // }
 
       const gasPrice = await library?.getGasPrice()
-      const gasLimit = pairState === PairState.NOT_EXISTS ? CREATE_PAIR_GAS_LIMIT : ADD_LIQUIDITY_GAS_LIMIT
+      const gasLimit = pairState === PairState.NOT_EXISTS ? CREATE_PAIR_GAS_LIMIT * 3 : ADD_LIQUIDITY_GAS_LIMIT * 3
       const feeOnTokenA = await calculateConveyorFeeOnToken(
         chainId,
         currencyIdA,
         currencyA.decimals,
         gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
       )
+      console.log('gasPrice, gasLimit', { gasPrice, gasLimit })
+      console.log('gasPrice.toHexString', gasPrice.toHexString())
 
       const EIP712Domain = [
         { name: 'name', type: 'string' },
