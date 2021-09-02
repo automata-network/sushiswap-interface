@@ -337,9 +337,9 @@ export default function Add() {
         deadline: deadline.toHexString(),
       }
 
-      const fnData = [
-        'function addLiquidity(address tokenA,address tokenB,uint256 amountADesired,uint256 amountBDesired,uint256 amountAMin,uint256 amountBMin,address user,uint256 deadline)',
-      ]
+      const fnParam =
+        'tuple(address tokenA,address tokenB,uint256 amountADesired,uint256 amountBDesired,uint256 amountAMin,uint256 amountBMin,address user,uint256 deadline)'
+      const fnData = [`function addLiquidity(${fnParam})`]
       const fnDataIface = new Interface(fnData)
 
       const message = {
@@ -348,7 +348,7 @@ export default function Add() {
         maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
         deadline: deadline.toHexString(),
         nonce: nonce.toHexString(),
-        data: fnDataIface.functions.addLiquidity.encode(Object.entries(payload).map(([_, value]) => value)),
+        data: fnDataIface.functions.addLiquidity.encode([payload]),
         hashedPayload: keccak256(
           defaultAbiCoder.encode(
             ['bytes', 'address', 'address', 'uint256', 'uint256', 'uint256', 'uint256', 'address', 'uint256'],

@@ -698,9 +698,8 @@ export function useSwapCallback(
           deadline: transactionDeadline.toHexString(),
         }
 
-        const fnData = [
-          'function swapExactTokensForTokens(uint256 amount0,uint256 amount1,address[] path,address user,uint256 deadline)',
-        ]
+        const fnParam = 'tuple(uint256 amount0,uint256 amount1,address[] path,address user,uint256 deadline)'
+        const fnData = [`function swapExactTokensForTokens(${fnParam})`]
         const fnDataIface = new EthInterface(fnData)
 
         const message = {
@@ -709,9 +708,7 @@ export function useSwapCallback(
           maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
           deadline: transactionDeadline.toHexString(),
           nonce: nonce.toHexString(),
-          data: fnDataIface.functions.swapExactTokensForTokens.encode(
-            Object.entries(payload).map(([_, value]) => value)
-          ),
+          data: fnDataIface.functions.swapExactTokensForTokens.encode([payload]),
           hashedPayload: keccak256(
             defaultAbiCoder.encode(
               ['bytes', 'uint256', 'uint256', 'bytes32', 'address', 'uint256'],

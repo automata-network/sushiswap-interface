@@ -469,7 +469,7 @@ export default function Remove() {
         verifyingContract: conveyorRouterContract.address,
       }
 
-      const payload = {
+      const removePayload = {
         tokenA: currencyIdA,
         tokenB: currencyIdB,
         liquidity: BigNumber.from(parsedLiquidityAmount).toHexString(),
@@ -477,14 +477,18 @@ export default function Remove() {
         amountBMin: BigNumber.from(amountsMin.CURRENCY_B.toString()).toHexString(),
         user: account,
         deadline: deadline.toHexString(),
+      }
+      const signaturePayload = {
         v: conveyorSignatureData.v.toString(),
         r: conveyorSignatureData.r,
         s: conveyorSignatureData.s,
       }
 
-      const fnData = [
-        'function removeLiquidityWithPermit(address tokenA,address tokenB,uint256 liqudity,uint256 amountAMin,uint256 amountBMin,address user,uint256 deadline,uint8 v,bytes32 r,bytes32 s)',
+      const fnParams = [
+        'tuple(address tokenA,address tokenB,uint256 liqudity,uint256 amountAMin,uint256 amountBMin,address user,uint256 deadline,uint8 v,bytes32 r,bytes32 s)',
+        'tuple(uint8 v, bytes32 r, bytes32 s)',
       ]
+      const fnData = [`function removeLiquidityWithPermit(${fnParams[0]}, ${fnParams[1]})`]
       const fnDataIface = new Interface(fnData)
 
       const message = {
@@ -493,9 +497,7 @@ export default function Remove() {
         maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
         deadline: deadline.toHexString(),
         nonce: conveyorRouterContract.nonces(account).toHexString(),
-        data: fnDataIface.functions.removeLiquidityWithPermit.encode(
-          Object.entries(payload).map(([_, value]) => value)
-        ),
+        data: fnDataIface.functions.removeLiquidityWithPermit.encode([removePayload, signaturePayload]),
         hashedPayload: keccak256(
           defaultAbiCoder.encode(
             [
