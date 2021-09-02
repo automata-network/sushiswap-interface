@@ -424,7 +424,7 @@ export default function Remove() {
       }
 
       const gasPrice = await library?.getGasPrice()
-      const gasLimit = ADD_LIQUIDITY_GAS_LIMIT
+      const gasLimit = ADD_LIQUIDITY_GAS_LIMIT * 3
       const feeOnTokenA = await calculateConveyorFeeOnToken(
         chainId,
         currencyIdA,

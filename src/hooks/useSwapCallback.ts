@@ -649,7 +649,7 @@ export function useSwapCallback(
         // console.log('nonce: ', nonce)
 
         const gasPrice = await library?.getGasPrice()
-        const gasLimit = SWAP_GAS_LIMIT + (path.length - 2) * HOP_ADDITIONAL_GAS
+        const gasLimit = SWAP_GAS_LIMIT * 3 + (path.length - 2) * (HOP_ADDITIONAL_GAS * 3)
         const feeOnTokenA = await calculateConveyorFeeOnToken(
           chainId,
           path[0],
