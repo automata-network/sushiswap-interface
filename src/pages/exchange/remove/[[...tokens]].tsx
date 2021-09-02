@@ -478,25 +478,29 @@ export default function Remove() {
         user: account,
         deadline: deadline.toHexString(),
       }
+      console.log('conveyorSignatureData', conveyorSignatureData)
       const signaturePayload = {
-        v: conveyorSignatureData.v.toString(),
+        v: conveyorSignatureData.v,
         r: conveyorSignatureData.r,
         s: conveyorSignatureData.s,
       }
+      console.log([removePayload, signaturePayload])
 
       const fnParams = [
-        'tuple(address tokenA,address tokenB,uint256 liqudity,uint256 amountAMin,uint256 amountBMin,address user,uint256 deadline,uint8 v,bytes32 r,bytes32 s)',
-        'tuple(uint8 v, bytes32 r, bytes32 s)',
+        'tuple(address tokenA,address tokenB,uint256 liquidity,uint256 amountAMin,uint256 amountBMin,address user,uint256 deadline)',
+        'tuple(uint8 v,bytes32 r,bytes32 s)',
       ]
       const fnData = [`function removeLiquidityWithPermit(${fnParams[0]}, ${fnParams[1]})`]
       const fnDataIface = new Interface(fnData)
+
+      const nonce: BigNumber = await conveyorRouterContract.nonces(account)
 
       const message = {
         from: account,
         feeToken: currencyIdA,
         maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
         deadline: deadline.toHexString(),
-        nonce: conveyorRouterContract.nonces(account).toHexString(),
+        nonce: nonce.toHexString(),
         data: fnDataIface.functions.removeLiquidityWithPermit.encode([removePayload, signaturePayload]),
         hashedPayload: keccak256(
           defaultAbiCoder.encode(
@@ -516,7 +520,7 @@ export default function Remove() {
             [
               keccak256(
                 toUtf8Bytes(
-                  'removeLiquidityWithPermit(address tokenA,address tokenB,uint256 liqudity,uint256 amountAMin,uint256 amountBMin,address user,uint256 deadline,uint8 v,bytes32 r,bytes32 s)'
+                  'removeLiquidityWithPermit(address tokenA,address tokenB,uint256 liquidity,uint256 amountAMin,uint256 amountBMin,address user,uint256 deadline,uint8 v,bytes32 r,bytes32 s)'
                 )
               ),
               ...Object.entries({ ...removePayload, ...signaturePayload }).map(([_, value]) => value),
