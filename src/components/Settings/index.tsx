@@ -1,5 +1,5 @@
 import { ChainId, Percent } from '@sushiswap/sdk'
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
   useExpertModeManager,
   useUserArcherUseRelay,
@@ -45,6 +45,13 @@ export default function SettingsTab({ placeholderSlippage }: { placeholderSlippa
   const [userUseArcher, setUserUseArcher] = useUserArcherUseRelay()
 
   const [userUseConveyor, setUserUseConveyor] = useUserConveyorUseRelay()
+
+  useEffect(() => {
+    const conveyorIsSupported = chainId === ChainId.MAINNET || chainId === ChainId.BSC || chainId === ChainId.MATIC
+    if (!conveyorIsSupported && userUseConveyor) {
+      setUserUseConveyor(false)
+    }
+  }, [chainId, userUseConveyor, setUserUseConveyor])
 
   return (
     <div className="relative flex" ref={node}>
@@ -125,7 +132,7 @@ export default function SettingsTab({ placeholderSlippage }: { placeholderSlippa
                 />
               </div>
             )} */}
-            {chainId == ChainId.BSC && (
+            {(chainId === ChainId.MAINNET || chainId === ChainId.BSC || chainId === ChainId.MATIC) && (
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <Typography variant="sm" className="text-primary">
