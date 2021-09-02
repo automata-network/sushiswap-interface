@@ -19,14 +19,18 @@ export async function calculateConveyorFeeOnToken(
     throw Error('Token address unknown')
   }
 
-  if (chainId === ChainId.BSC) {
-    return await calculateBSCFee(chainId, address, decimals, nativeTokenAmount, 'bnb', 18)
+  if (chainId === ChainId.MAINNET) {
+    return await calculateFee(chainId, address, decimals, nativeTokenAmount, 'eth', 18)
+  } else if (chainId === ChainId.BSC) {
+    return await calculateFee(chainId, address, decimals, nativeTokenAmount, 'bnb', 18)
+  } else if (chainId === ChainId.MATIC) {
+    return await calculatePolygonFee(chainId, address, decimals, nativeTokenAmount)
   } else {
     throw Error('Unsupported Network')
   }
 }
 
-async function calculateBSCFee(
+async function calculateFee(
   chainId: ChainId,
   address: string,
   decimals: number,
@@ -55,5 +59,34 @@ async function calculateBSCFee(
     .div(new JSBigNumber(10).pow(decimals))
   // const priceBNB = parseFloat(price_BNB) * Math.pow(10, 18) / Math.pow(10, decimals)
   const feeInToken = new JSBigNumber(nativeTokenAmount.toString()).div(price)
+  return feeInToken
+}
+
+async function calculatePolygonFee(
+  chainId: ChainId,
+  address: string,
+  decimals: number,
+  nativeTokenAmount: BigNumber
+): Promise<JSBigNumber> {
+  const priceApiPrefix = PRICE_API_PREFIX[chainId]
+  if (priceApiPrefix === undefined) {
+    throw Error('Unable to calculate fee')
+  }
+
+  const response = await fetch(priceApiPrefix + 'contract_addresses=' + address + '&vs_currencies=bnb')
+  const responseMap = await response.json()
+  const data = responseMap[address.toLowerCase()]
+  const { bnb } = data
+  const priceBNB = new JSBigNumber(bnb).multipliedBy(new JSBigNumber(10).pow(18)).div(new JSBigNumber(10).pow(decimals))
+
+  const maticBnbRatioApi = 'https://api.coingecko.com/api/v3/simple/price?ids=matic-network&vs_currencies=bnb'
+  const maticResponse = await fetch(maticBnbRatioApi)
+  const maticResponseMap = await maticResponse.json()
+  const maticData = maticResponseMap['matic-network']
+  const maticBnb = maticData['bnb']
+  const maticBnbPrice = new JSBigNumber(maticBnb)
+
+  // const priceBNB = parseFloat(price_BNB) * Math.pow(10, 18) / Math.pow(10, decimals)
+  const feeInToken = new JSBigNumber(nativeTokenAmount.toString()).div(priceBNB.div(maticBnbPrice))
   return feeInToken
 }
