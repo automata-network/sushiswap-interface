@@ -272,8 +272,10 @@ export default function Add() {
       })
       const amountAMin = amountsMin[Field.CURRENCY_A].toString()
       const amountBMin = amountsMin[Field.CURRENCY_B].toString()
-      // console.log('amountAMin: ', amountAMin)
-      // console.log('amountBMin: ', amountBMin)
+      console.log('amountADesired', amountADesired)
+      console.log('amountBDesired', amountBDesired)
+      console.log('amountAMin: ', amountAMin)
+      console.log('amountBMin: ', amountBMin)
 
       // if (currencyA === ETHER || currencyB === ETHER) {
       //   setErrorMessage('Only GToken is supported')
@@ -294,6 +296,7 @@ export default function Add() {
       )
       // console.log('gasPrice, gasLimit', { gasPrice, gasLimit })
       // console.log('gasPrice.toHexString', gasPrice.toHexString())
+      const maxTokenAmount = feeOnTokenA.plus(new JSBigNumber(amountADesired)).toFixed(0)
 
       const EIP712Domain = [
         { name: 'name', type: 'string' },
@@ -357,7 +360,7 @@ export default function Add() {
       const message = {
         from: account,
         feeToken: currencyIdA,
-        maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+        maxTokenAmount: BigNumber.from(maxTokenAmount).toHexString(),
         // maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
         deadline: deadline.toHexString(),
         nonce: nonce.toHexString(),

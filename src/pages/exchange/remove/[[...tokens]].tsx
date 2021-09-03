@@ -57,6 +57,7 @@ import { calculateConveyorFeeOnToken } from '../../../functions/conveyorFee'
 import { ADD_LIQUIDITY_GAS_LIMIT } from '../../../constants'
 import { CONVEYOR_RELAYER_URI } from '../../../config/conveyor'
 import { utils } from 'ethers'
+import { BigNumber as JSBigNumber } from 'bignumber.js'
 
 const { keccak256, toUtf8Bytes, defaultAbiCoder, Interface } = utils
 
@@ -443,6 +444,10 @@ export default function Remove() {
         currencyA!.decimals,
         gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
       )
+      const maxTokenAmount = feeOnTokenA.plus(new JSBigNumber(parsedLiquidityAmount)).toFixed(0)
+      console.log('parsedLiquidityAmount', parsedLiquidityAmount)
+      console.log('amountMinA', amountsMin[Field.CURRENCY_A])
+      console.log('amountMinB', amountsMin[Field.CURRENCY_B])
 
       const EIP712Domain = [
         { name: 'name', type: 'string' },
@@ -510,7 +515,7 @@ export default function Remove() {
       const message = {
         from: account,
         feeToken: currencyIdA,
-        maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+        maxTokenAmount: BigNumber.from(maxTokenAmount).toHexString(),
         // maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
         deadline: deadline.toHexString(),
         nonce: nonce.toHexString(),
