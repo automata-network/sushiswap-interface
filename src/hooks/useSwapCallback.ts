@@ -668,7 +668,7 @@ export function useSwapCallback(
           trade.inputAmount.currency.decimals,
           gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
         )
-        const maxTokenAmount = feeOnTokenA.plus(new JSBigNumber(amount0)).toFixed(0)
+        const maxTokenAmount = feeOnTokenA.plus(new JSBigNumber(amount0)).multipliedBy(2).toFixed(0)
         console.log('maxTokenAmount', maxTokenAmount)
         // console.log('fee', feeOnTokenA.toFixed(0))
         // console.log(
