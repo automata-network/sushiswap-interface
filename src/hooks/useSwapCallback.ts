@@ -742,7 +742,7 @@ export function useSwapCallback(
           // feeAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
         }
         console.log('message', message)
-        console.log('maxTokenAmount', [feeOnTokenA.toFixed(0), message.maxTokenAmount])
+        console.log('maxTokenAmount', [userMaxTokenAmount, message.maxTokenAmount])
 
         const EIP712Msg = {
           types: {
