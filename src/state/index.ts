@@ -23,7 +23,7 @@ const persistConfig: any = {
         // ignore other state data other than user
         if (key === '_persist' || key !== 'user') return
 
-        newState[key] = inboundState[key]
+        newState[key] = Object.assign({}, newState[key], inboundState[key])
       })
     }
 
