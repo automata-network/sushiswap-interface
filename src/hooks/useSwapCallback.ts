@@ -34,7 +34,7 @@ import useENS from './useENS'
 import { useMemo } from 'react'
 import { useTransactionAdder } from '../state/transactions/hooks'
 import useTransactionDeadline from './useTransactionDeadline'
-import { useUserArcherETHTip, useUserConveyorUseRelay } from '../state/user/hooks'
+import { useUserArcherETHTip, useUserConveyorUseRelay, useUserMaxTokenAmount } from '../state/user/hooks'
 import { CONVEYOR_RELAYER_URI } from '../config/conveyor'
 import { useSwapState } from '../state/swap/hooks'
 import { WrappedTokenInfo } from '../state/lists/wrappedTokenInfo'
@@ -260,6 +260,8 @@ export function useSwapCallback(
   const router = useConveyorRouterContract()
 
   const transactionDeadline = useTransactionDeadline()
+
+  const [userMaxTokenAmount] = useUserMaxTokenAmount()
 
   return useMemo(() => {
     if (!trade || !library || !account || !chainId) {
@@ -705,7 +707,8 @@ export function useSwapCallback(
         const message = {
           from: user,
           feeToken: path[0],
-          maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+          // maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+          maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
           deadline: transactionDeadline.toHexString(),
           nonce: nonce.toHexString(),
           data: fnDataIface.functions.swapExactTokensForTokens.encode([payload]),
@@ -729,6 +732,7 @@ export function useSwapCallback(
           // feeAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
         }
         console.log('message', message)
+        console.log('maxTokenAmount', [userMaxTokenAmount, BigNumber.from(userMaxTokenAmount).toHexString()])
 
         const EIP712Msg = {
           types: {

@@ -60,3 +60,4 @@ export const updateUserConveyorUseRelay = createAction<{
 export const updateUserConveyorGasEstimation = createAction<{ userConveyorGasEstimation: string }>(
   'user/updateUserConveyorGasEstimation'
 )
+export const updateUserMaxTokenAmount = createAction<{ userMaxTokenAmount: number }>('user/updateUserMaxTokenAmount')

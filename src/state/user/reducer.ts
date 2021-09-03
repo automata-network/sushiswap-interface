@@ -21,6 +21,7 @@ import {
   updateUserSlippageTolerance,
   updateUserConveyorUseRelay,
   updateUserConveyorGasEstimation,
+  updateUserMaxTokenAmount,
 } from './actions'
 
 import { createReducer } from '@reduxjs/toolkit'
@@ -69,6 +70,8 @@ export interface UserState {
 
   userConveyorUseRelay: boolean
   userConveyorGasEstimation: string
+
+  userMaxTokenAmount: number
 }
 
 function pairKey(token0Address: string, token1Address: string) {
@@ -93,6 +96,7 @@ export const initialState: UserState = {
   userArcherTipManualOverride: false,
   userConveyorUseRelay: false,
   userConveyorGasEstimation: '',
+  userMaxTokenAmount: 12000000,
 }
 
 export default createReducer(initialState, (builder) =>
@@ -108,6 +112,12 @@ export default createReducer(initialState, (builder) =>
       // noinspection SuspiciousTypeOfGuard
       if (typeof state.userDeadline !== 'number') {
         state.userDeadline = DEFAULT_DEADLINE_FROM_NOW
+      }
+
+      // max token amount isnt being tracked in local storage, reset to default
+      // noinspection SuspiciousTypeOfGuard
+      if (typeof state.userMaxTokenAmount !== 'number') {
+        state.userMaxTokenAmount = 12000000
       }
 
       state.lastUpdateVersionTimestamp = currentTimestamp()
@@ -188,5 +198,8 @@ export default createReducer(initialState, (builder) =>
     })
     .addCase(updateUserConveyorGasEstimation, (state, action) => {
       state.userConveyorGasEstimation = action.payload.userConveyorGasEstimation
+    })
+    .addCase(updateUserMaxTokenAmount, (state, action) => {
+      state.userMaxTokenAmount = action.payload.userMaxTokenAmount
     })
 )

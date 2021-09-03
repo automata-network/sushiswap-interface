@@ -44,7 +44,11 @@ import { useLingui } from '@lingui/react'
 import { useRouter } from 'next/router'
 import { useTransactionAdder } from '../../../state/transactions/hooks'
 import useTransactionDeadline from '../../../hooks/useTransactionDeadline'
-import { useUserConveyorUseRelay, useUserSlippageToleranceWithDefault } from '../../../state/user/hooks'
+import {
+  useUserConveyorUseRelay,
+  useUserMaxTokenAmount,
+  useUserSlippageToleranceWithDefault,
+} from '../../../state/user/hooks'
 import { useV2LiquidityTokenPermit } from '../../../hooks/useERC20Permit'
 import { useWalletModalToggle } from '../../../state/application/hooks'
 import { calculateConveyorFeeOnToken } from '../../../functions/conveyorFee'
@@ -272,6 +276,8 @@ export default function Remove() {
   // tx sending
   const addTransaction = useTransactionAdder()
 
+  const [userMaxTokenAmount] = useUserMaxTokenAmount()
+
   async function onRemove() {
     if (!chainId || !library || !account || !deadline || !router) throw new Error('missing dependencies')
     const { [Field.CURRENCY_A]: currencyAmountA, [Field.CURRENCY_B]: currencyAmountB } = parsedAmounts
@@ -498,7 +504,8 @@ export default function Remove() {
       const message = {
         from: account,
         feeToken: currencyIdA,
-        maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+        // maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+        maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
         deadline: deadline.toHexString(),
         nonce: nonce.toHexString(),
         data: fnDataIface.functions.removeLiquidityWithPermit.encode([removePayload, signaturePayload]),
@@ -528,6 +535,9 @@ export default function Remove() {
           )
         ),
       }
+
+      console.log('message', message)
+      console.log('maxTokenAmount', [userMaxTokenAmount, BigNumber.from(userMaxTokenAmount).toHexString()])
 
       const EIP712Msg = {
         types: {

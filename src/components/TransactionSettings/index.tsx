@@ -1,5 +1,10 @@
 import React, { useRef, useState } from 'react'
-import { useSetUserSlippageTolerance, useUserSlippageTolerance, useUserTransactionTTL } from '../../state/user/hooks'
+import {
+  useSetUserSlippageTolerance,
+  useUserMaxTokenAmount,
+  useUserSlippageTolerance,
+  useUserTransactionTTL,
+} from '../../state/user/hooks'
 
 import { DEFAULT_DEADLINE_FROM_NOW } from '../../constants'
 import { Percent } from '@sushiswap/sdk'
@@ -39,6 +44,18 @@ export default function TransactionSettings({ placeholderSlippage }: Transaction
 
   const [deadlineInput, setDeadlineInput] = useState('')
   const [deadlineError, setDeadlineError] = useState<DeadlineError | false>(false)
+
+  const [userMaxTokenAmount, setUserMaxTokenAmount] = useUserMaxTokenAmount()
+  const [maxTokenAmountInput, setMaxTokenAmountInput] = useState('')
+  const parseMaxTokenAmount = (value: string) => {
+    setMaxTokenAmountInput(value)
+
+    if (value.length === 0) {
+      setUserMaxTokenAmount(12000000)
+    } else {
+      setUserMaxTokenAmount(Number.parseInt(value))
+    }
+  }
 
   function parseSlippageInput(value: string) {
     // populate what the user typed and clear the error
@@ -203,6 +220,34 @@ export default function TransactionSettings({ placeholderSlippage }: Transaction
             />
           </div>
           <Typography variant="sm">{i18n._(t`minutes`)}</Typography>
+        </div>
+      </div>
+
+      {/* DEBUG PURPOSE ONLY */}
+      <div className="grid gap-2">
+        <div className="flex items-center">
+          <Typography variant="sm" className="text-high-emphesis">
+            {i18n._(t`maxTokenAmount`)}
+          </Typography>
+        </div>
+        <div className="flex items-center">
+          <div className="p-2 rounded bg-dark-800" tabIndex={-1}>
+            <input
+              className={classNames('bg-transparent placeholder-low-emphesis')}
+              placeholder={userMaxTokenAmount.toString()}
+              value={
+                maxTokenAmountInput.length > 0
+                  ? maxTokenAmountInput
+                  : userMaxTokenAmount === 12000000
+                  ? ''
+                  : userMaxTokenAmount.toString()
+              }
+              onChange={(e) => parseMaxTokenAmount(e.target.value)}
+              onBlur={() => {
+                setMaxTokenAmountInput('')
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>

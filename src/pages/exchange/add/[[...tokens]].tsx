@@ -12,6 +12,7 @@ import {
   useExpertModeManager,
   useUserConveyorGasEstimation,
   useUserConveyorUseRelay,
+  useUserMaxTokenAmount,
   useUserSlippageToleranceWithDefault,
 } from '../../../state/user/hooks'
 
@@ -158,6 +159,8 @@ export default function Add() {
   )
 
   const addTransaction = useTransactionAdder()
+
+  const [userMaxTokenAmount] = useUserMaxTokenAmount()
 
   async function onAdd() {
     if (!chainId || !library || !account || !routerContract) return
@@ -347,7 +350,8 @@ export default function Add() {
       const message = {
         from: account,
         feeToken: currencyIdA,
-        maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+        // maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+        maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
         deadline: deadline.toHexString(),
         nonce: nonce.toHexString(),
         data: fnDataIface.functions.addLiquidity.encode([payload]),
@@ -378,6 +382,7 @@ export default function Add() {
       }
 
       console.log('message', message)
+      console.log('maxTokenAmount', [userMaxTokenAmount, BigNumber.from(userMaxTokenAmount).toHexString()])
 
       const EIP712Msg = {
         types: {

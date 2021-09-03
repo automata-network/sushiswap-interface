@@ -31,6 +31,7 @@ import {
   updateUserSlippageTolerance,
   updateUserConveyorUseRelay,
   updateUserConveyorGasEstimation,
+  updateUserMaxTokenAmount,
 } from './actions'
 import { shallowEqual, useDispatch, useSelector } from 'react-redux'
 import { useAppDispatch, useAppSelector } from '../hooks'
@@ -454,4 +455,21 @@ export function useUserConveyorGasEstimation(): [string, (gasFee: string) => voi
   )
 
   return [userConveyorGasEstimation, setUserConveyorGasEstimation]
+}
+
+export function useUserMaxTokenAmount(): [number, (tokenAmount: number) => void] {
+  const dispatch = useAppDispatch()
+
+  const userMaxTokenAmount = useSelector<AppState, AppState['user']['userMaxTokenAmount']>(
+    (state) => state.user.userMaxTokenAmount
+  )
+
+  const setUserMaxTokenAmount = useCallback(
+    (tokenAmount: number) => {
+      dispatch(updateUserMaxTokenAmount({ userMaxTokenAmount: tokenAmount }))
+    },
+    [dispatch]
+  )
+
+  return [userMaxTokenAmount, setUserMaxTokenAmount]
 }
