@@ -300,6 +300,7 @@ export default function Add() {
         .plus(new JSBigNumber(amountADesired))
         .plus(new JSBigNumber(amountBDesired))
         .toFixed(0)
+      console.log('liquidityMinted', liquidityMinted.toSignificant(6))
       console.log('maxTokenAmount', maxTokenAmount)
 
       const EIP712Domain = [
@@ -364,7 +365,7 @@ export default function Add() {
       const message = {
         from: account,
         feeToken: currencyIdA,
-        maxTokenAmount: BigNumber.from(maxTokenAmount).toHexString(),
+        maxTokenAmount: BigNumber.from('99000000000000000000').toHexString(),
         // maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
         deadline: deadline.toHexString(),
         nonce: nonce.toHexString(),
