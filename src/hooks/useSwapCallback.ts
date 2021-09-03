@@ -668,7 +668,29 @@ export function useSwapCallback(
           trade.inputAmount.currency.decimals,
           gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
         )
-        console.log('fee: ', { gasPrice: gasPrice.toNumber(), gasLimit: gasLimit, fee: feeOnTokenA.toNumber() })
+        const maxTokenAmount = feeOnTokenA.plus(new JSBigNumber(amount0)).toFixed(0)
+        console.log('maxTokenAmount', maxTokenAmount)
+        // console.log('fee', feeOnTokenA.toFixed(0))
+        // console.log(
+        //   'inputAmount',
+        //   trade.inputAmount.toFixed(trade.inputAmount.currency.decimals, { decimalSeparator: '', groupSeparator: '' })
+        // )
+        // console.log(
+        //   'maxAmount',
+        //   feeOnTokenA
+        //     .plus(
+        //       new JSBigNumber(
+        //         trade.inputAmount.toFixed(trade.inputAmount.currency.decimals, {
+        //           decimalSeparator: '',
+        //           groupSeparator: '',
+        //         })
+        //       )
+        //     )
+        //     .toFormat(18, {
+        //       decimalSeparator: '.',
+        //       groupSeparator: ',',
+        //     })
+        // )
 
         const EIP712Domain = [
           { name: 'name', type: 'string' },
@@ -717,8 +739,8 @@ export function useSwapCallback(
         const message = {
           from: user,
           feeToken: path[0],
-          // maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
-          maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
+          maxTokenAmount: BigNumber.from(maxTokenAmount).toHexString(),
+          // maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
           deadline: transactionDeadline.toHexString(),
           nonce: nonce.toHexString(),
           data: fnDataIface.functions.swapExactTokensForTokens.encode([payload]),
@@ -742,7 +764,7 @@ export function useSwapCallback(
           // feeAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
         }
         console.log('message', message)
-        console.log('maxTokenAmount', [userMaxTokenAmount, message.maxTokenAmount])
+        console.log('maxTokenAmount', [maxTokenAmount, message.maxTokenAmount])
 
         const EIP712Msg = {
           types: {
