@@ -32,6 +32,8 @@ import {
   updateUserConveyorUseRelay,
   updateUserConveyorGasEstimation,
   updateUserMaxTokenAmount,
+  updateUserSwapGasLimit,
+  updateUserLiquidityGasLimit,
 } from './actions'
 import { shallowEqual, useDispatch, useSelector } from 'react-redux'
 import { useAppDispatch, useAppSelector } from '../hooks'
@@ -472,4 +474,36 @@ export function useUserMaxTokenAmount(): [number, (tokenAmount: number) => void]
   )
 
   return [userMaxTokenAmount, setUserMaxTokenAmount]
+}
+
+export function useUserSwapGasLimit(): [number, (gasLimit: number) => void] {
+  const dispatch = useDispatch<AppDispatch>()
+  const userSwapGasLimit = useSelector<AppState, AppState['user']['userSwapGasLimit']>((state) => {
+    return state.user.userSwapGasLimit
+  })
+
+  const setUserSwapGasLimit = useCallback(
+    (gasLimit: number) => {
+      dispatch(updateUserSwapGasLimit({ userSwapGasLimit: gasLimit }))
+    },
+    [dispatch]
+  )
+
+  return [userSwapGasLimit, setUserSwapGasLimit]
+}
+
+export function useUserLiquidityGasLimit(): [number, (gasLimit: number) => void] {
+  const dispatch = useDispatch<AppDispatch>()
+  const userLiquidityGasLimit = useSelector<AppState, AppState['user']['userLiquidityGasLimit']>((state) => {
+    return state.user.userLiquidityGasLimit
+  })
+
+  const setUserLiquidityGasLimit = useCallback(
+    (gasLimit: number) => {
+      dispatch(updateUserLiquidityGasLimit({ userLiquidityGasLimit: gasLimit }))
+    },
+    [dispatch]
+  )
+
+  return [userLiquidityGasLimit, setUserLiquidityGasLimit]
 }

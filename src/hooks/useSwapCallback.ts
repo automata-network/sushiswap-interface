@@ -34,7 +34,13 @@ import useENS from './useENS'
 import { useMemo } from 'react'
 import { useTransactionAdder } from '../state/transactions/hooks'
 import useTransactionDeadline from './useTransactionDeadline'
-import { useUserArcherETHTip, useUserConveyorUseRelay, useUserMaxTokenAmount } from '../state/user/hooks'
+import {
+  useIsExpertMode,
+  useUserArcherETHTip,
+  useUserConveyorUseRelay,
+  useUserMaxTokenAmount,
+  useUserSwapGasLimit,
+} from '../state/user/hooks'
 import { CONVEYOR_RELAYER_URI } from '../config/conveyor'
 import { useSwapState } from '../state/swap/hooks'
 import { WrappedTokenInfo } from '../state/lists/wrappedTokenInfo'
@@ -257,11 +263,14 @@ export function useSwapCallback(
 
   const [userConveyorUseRelay] = useUserConveyorUseRelay()
 
-  const router = useConveyorRouterContract()
+  const conveyorRouter = useConveyorRouterContract()
 
   const transactionDeadline = useTransactionDeadline()
 
   const [userMaxTokenAmount] = useUserMaxTokenAmount()
+
+  const isExpertMode = useIsExpertMode()
+  const [userSwapGasLimit] = useUserSwapGasLimit()
 
   return useMemo(() => {
     if (!trade || !library || !account || !chainId) {
@@ -606,7 +615,7 @@ export function useSwapCallback(
           })
         }
 
-        const user = await router.signer.getAddress()
+        const user = await conveyorRouter.signer.getAddress()
         // console.log('user: ', { user, account, userEqualsAccount: user === account })
         if (user !== account) {
           throw new Error('Wrong sender')
@@ -647,11 +656,11 @@ export function useSwapCallback(
         //   }
         // }
 
-        const nonce: BigNumber = await router.nonces(account)
+        const nonce: BigNumber = await conveyorRouter.nonces(account)
         // console.log('nonce: ', nonce)
 
         const gasPrice = await library?.getGasPrice()
-        const gasLimit = SWAP_GAS_LIMIT * 3 + (path.length - 2) * (HOP_ADDITIONAL_GAS * 3)
+        const gasLimit = (isExpertMode ? userSwapGasLimit : SWAP_GAS_LIMIT) + (path.length - 2) * HOP_ADDITIONAL_GAS
         const feeOnTokenA = await calculateConveyorFeeOnToken(
           chainId,
           path[0],
@@ -707,8 +716,8 @@ export function useSwapCallback(
         const message = {
           from: user,
           feeToken: path[0],
-          // maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
-          maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
+          maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+          // maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
           deadline: transactionDeadline.toHexString(),
           nonce: nonce.toHexString(),
           data: fnDataIface.functions.swapExactTokensForTokens.encode([payload]),
@@ -732,7 +741,7 @@ export function useSwapCallback(
           // feeAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
         }
         console.log('message', message)
-        console.log('maxTokenAmount', [userMaxTokenAmount, BigNumber.from(userMaxTokenAmount).toHexString()])
+        console.log('maxTokenAmount', [feeOnTokenA.toFixed(0), message.maxTokenAmount])
 
         const EIP712Msg = {
           types: {

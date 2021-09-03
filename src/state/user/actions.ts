@@ -61,3 +61,7 @@ export const updateUserConveyorGasEstimation = createAction<{ userConveyorGasEst
   'user/updateUserConveyorGasEstimation'
 )
 export const updateUserMaxTokenAmount = createAction<{ userMaxTokenAmount: number }>('user/updateUserMaxTokenAmount')
+export const updateUserSwapGasLimit = createAction<{ userSwapGasLimit: number }>('user/updateUserSwapGasLimit')
+export const updateUserLiquidityGasLimit = createAction<{ userLiquidityGasLimit: number }>(
+  'user/updateUserLiquidityGasLimit'
+)

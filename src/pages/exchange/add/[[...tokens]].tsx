@@ -12,6 +12,7 @@ import {
   useExpertModeManager,
   useUserConveyorGasEstimation,
   useUserConveyorUseRelay,
+  useUserLiquidityGasLimit,
   useUserMaxTokenAmount,
   useUserSlippageToleranceWithDefault,
 } from '../../../state/user/hooks'
@@ -162,6 +163,8 @@ export default function Add() {
 
   const [userMaxTokenAmount] = useUserMaxTokenAmount()
 
+  const [userLiquidityGasLimit] = useUserLiquidityGasLimit()
+
   async function onAdd() {
     if (!chainId || !library || !account || !routerContract) return
 
@@ -278,15 +281,19 @@ export default function Add() {
       // }
 
       const gasPrice = await library?.getGasPrice()
-      const gasLimit = pairState === PairState.NOT_EXISTS ? CREATE_PAIR_GAS_LIMIT * 3 : ADD_LIQUIDITY_GAS_LIMIT * 3
+      const gasLimit = isExpertMode
+        ? userLiquidityGasLimit
+        : pairState === PairState.NOT_EXISTS
+        ? CREATE_PAIR_GAS_LIMIT
+        : ADD_LIQUIDITY_GAS_LIMIT
       const feeOnTokenA = await calculateConveyorFeeOnToken(
         chainId,
         currencyIdA,
         currencyA.decimals,
         gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
       )
-      console.log('gasPrice, gasLimit', { gasPrice, gasLimit })
-      console.log('gasPrice.toHexString', gasPrice.toHexString())
+      // console.log('gasPrice, gasLimit', { gasPrice, gasLimit })
+      // console.log('gasPrice.toHexString', gasPrice.toHexString())
 
       const EIP712Domain = [
         { name: 'name', type: 'string' },
@@ -350,8 +357,8 @@ export default function Add() {
       const message = {
         from: account,
         feeToken: currencyIdA,
-        // maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
-        maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
+        maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+        // maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
         deadline: deadline.toHexString(),
         nonce: nonce.toHexString(),
         data: fnDataIface.functions.addLiquidity.encode([payload]),
@@ -382,7 +389,7 @@ export default function Add() {
       }
 
       console.log('message', message)
-      console.log('maxTokenAmount', [userMaxTokenAmount, BigNumber.from(userMaxTokenAmount).toHexString()])
+      console.log('maxTokenAmount', [feeOnTokenA.toFixed(0), message.maxTokenAmount])
 
       const EIP712Msg = {
         types: {

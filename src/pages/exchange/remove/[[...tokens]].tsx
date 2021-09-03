@@ -45,7 +45,9 @@ import { useRouter } from 'next/router'
 import { useTransactionAdder } from '../../../state/transactions/hooks'
 import useTransactionDeadline from '../../../hooks/useTransactionDeadline'
 import {
+  useIsExpertMode,
   useUserConveyorUseRelay,
+  useUserLiquidityGasLimit,
   useUserMaxTokenAmount,
   useUserSlippageToleranceWithDefault,
 } from '../../../state/user/hooks'
@@ -278,6 +280,10 @@ export default function Remove() {
 
   const [userMaxTokenAmount] = useUserMaxTokenAmount()
 
+  const isExpertMode = useIsExpertMode()
+
+  const [userLiquidityGasLimit] = useUserLiquidityGasLimit()
+
   async function onRemove() {
     if (!chainId || !library || !account || !deadline || !router) throw new Error('missing dependencies')
     const { [Field.CURRENCY_A]: currencyAmountA, [Field.CURRENCY_B]: currencyAmountB } = parsedAmounts
@@ -430,7 +436,7 @@ export default function Remove() {
       }
 
       const gasPrice = await library?.getGasPrice()
-      const gasLimit = ADD_LIQUIDITY_GAS_LIMIT * 3
+      const gasLimit = isExpertMode ? userLiquidityGasLimit : ADD_LIQUIDITY_GAS_LIMIT
       const feeOnTokenA = await calculateConveyorFeeOnToken(
         chainId,
         currencyIdA,
@@ -504,8 +510,8 @@ export default function Remove() {
       const message = {
         from: account,
         feeToken: currencyIdA,
-        // maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
-        maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
+        maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+        // maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
         deadline: deadline.toHexString(),
         nonce: nonce.toHexString(),
         data: fnDataIface.functions.removeLiquidityWithPermit.encode([removePayload, signaturePayload]),
@@ -537,7 +543,7 @@ export default function Remove() {
       }
 
       console.log('message', message)
-      console.log('maxTokenAmount', [userMaxTokenAmount, BigNumber.from(userMaxTokenAmount).toHexString()])
+      console.log('maxTokenAmount', [feeOnTokenA.toFixed(0), message.maxTokenAmount])
 
       const EIP712Msg = {
         types: {

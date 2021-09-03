@@ -36,6 +36,7 @@ import {
   useUserConveyorGasEstimation,
   useUserSingleHopOnly,
   useUserSlippageTolerance,
+  useUserSwapGasLimit,
 } from '../user/hooks'
 import { useV2TradeExactIn as useTradeExactIn, useV2TradeExactOut as useTradeExactOut } from '../../hooks/useV2Trades'
 
@@ -51,7 +52,7 @@ import { useLingui } from '@lingui/react'
 import useParsedQueryString from '../../hooks/useParsedQueryString'
 import useSwapSlippageTolerance from '../../hooks/useSwapSlippageTollerence'
 import { calculateConveyorFeeOnToken } from '../../functions/conveyorFee'
-import { HOP_ADDITIONAL_GAS, SWAP_GAS_LIMIT } from '../../constants'
+import { HOP_ADDITIONAL_GAS } from '../../constants'
 
 export function useSwapState(): AppState['swap'] {
   return useAppSelector((state) => state.swap)
@@ -234,6 +235,7 @@ export function useDerivedSwapInfo(
   const [userTipManualOverride, setUserTipManualOverride] = useUserArcherTipManualOverride()
 
   const [, setUserConveyorGasEstimation] = useUserConveyorGasEstimation()
+  const [swapGasLimit] = useUserSwapGasLimit()
 
   //   Set all Conveyor-specific steps here
   if (doConveyor) {
@@ -252,7 +254,7 @@ export function useDerivedSwapInfo(
         if (typeof currencies[Field.INPUT] === 'undefined') return
         if (typeof value === 'undefined') return
 
-        const gasLimit = SWAP_GAS_LIMIT + (v2Trade.route.path.length - 2) * HOP_ADDITIONAL_GAS
+        const gasLimit = swapGasLimit + (v2Trade.route.path.length - 2) * HOP_ADDITIONAL_GAS
         calculateConveyorFeeOnToken(
           chainId,
           inputCurrencyId,
@@ -263,7 +265,7 @@ export function useDerivedSwapInfo(
         })
       })
     })()
-  }, [doConveyor, v2Trade, chainId, currencies, inputCurrencyId, library, setUserConveyorGasEstimation])
+  }, [doConveyor, v2Trade, chainId, currencies, inputCurrencyId, library, swapGasLimit, setUserConveyorGasEstimation])
 
   useEffect(() => {
     if (doArcher) {
