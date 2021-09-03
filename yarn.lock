@@ -2615,7 +2615,7 @@
 
 "@sushiswap/sdk@https://github.com/automata-network/sushiswap-sdk.git#conveyor-v2":
   version "5.0.0-canary.52"
-  resolved "https://github.com/automata-network/sushiswap-sdk.git#dbe495ff76b5f0725bf4928d8b81263c5595c7a1"
+  resolved "https://github.com/automata-network/sushiswap-sdk.git#4cb66f129a32a6d9e611120609d26677674605b0"
   dependencies:
     big.js "^6.1.0"
     decimal.js-light "^2.5.0"
