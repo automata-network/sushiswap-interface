@@ -296,7 +296,11 @@ export default function Add() {
       )
       // console.log('gasPrice, gasLimit', { gasPrice, gasLimit })
       // console.log('gasPrice.toHexString', gasPrice.toHexString())
-      const maxTokenAmount = feeOnTokenA.plus(new JSBigNumber(amountADesired)).toFixed(0)
+      const maxTokenAmount = feeOnTokenA
+        .plus(new JSBigNumber(amountADesired))
+        .plus(new JSBigNumber(amountBDesired))
+        .toFixed(0)
+      console.log('maxTokenAmount', maxTokenAmount)
 
       const EIP712Domain = [
         { name: 'name', type: 'string' },
@@ -392,7 +396,7 @@ export default function Add() {
       }
 
       console.log('message', message)
-      console.log('maxTokenAmount', [feeOnTokenA.toFixed(0), message.maxTokenAmount])
+      // console.log('maxTokenAmount', [feeOnTokenA.toFixed(0), message.maxTokenAmount])
 
       const EIP712Msg = {
         types: {
