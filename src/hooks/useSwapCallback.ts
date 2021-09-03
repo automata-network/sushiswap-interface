@@ -661,13 +661,14 @@ export function useSwapCallback(
 
         const gasPrice = await library?.getGasPrice()
         const gasLimit = (isExpertMode ? userSwapGasLimit : SWAP_GAS_LIMIT) + (path.length - 2) * HOP_ADDITIONAL_GAS
+        console.log(isExpertMode ? userSwapGasLimit : SWAP_GAS_LIMIT)
         const feeOnTokenA = await calculateConveyorFeeOnToken(
           chainId,
           path[0],
           trade.inputAmount.currency.decimals,
           gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
         )
-        // console.log('fee: ', {gasPrice, gasLimit, feeOnTokenA})
+        console.log('fee: ', { gasPrice: gasPrice.toNumber(), gasLimit: gasLimit, fee: feeOnTokenA.toNumber() })
 
         const EIP712Domain = [
           { name: 'name', type: 'string' },
@@ -716,8 +717,8 @@ export function useSwapCallback(
         const message = {
           from: user,
           feeToken: path[0],
-          maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
-          // maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
+          // maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+          maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
           deadline: transactionDeadline.toHexString(),
           nonce: nonce.toHexString(),
           data: fnDataIface.functions.swapExactTokensForTokens.encode([payload]),
