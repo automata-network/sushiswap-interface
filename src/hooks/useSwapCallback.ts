@@ -664,7 +664,7 @@ export function useSwapCallback(
         //   }
         // }
 
-        const nonce: BigNumber = await conveyorRouter.nonces(account)
+        const nonce: BigNumber = await conveyorRouter.nonces(user)
         // console.log('nonce: ', nonce)
 
         const gasPrice = await library?.getGasPrice()
