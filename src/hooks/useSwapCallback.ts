@@ -736,12 +736,7 @@ export function useSwapCallback(
         const message = {
           from: user,
           feeToken: path[0],
-          maxTokenAmount: BigNumber.from(
-            maxTokenAmount.toFormat(trade.inputAmount.currency.decimals, {
-              decimalSeparator: '',
-              groupSeparator: '',
-            })
-          ).toHexString(),
+          maxTokenAmount: BigNumber.from(maxTokenAmount.toFixed(0)).toHexString(),
           // maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
           deadline: transactionDeadline.toHexString(),
           nonce: nonce.toHexString(),
