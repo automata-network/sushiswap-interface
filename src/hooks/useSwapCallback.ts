@@ -632,7 +632,15 @@ export function useSwapCallback(
           }
         }
 
-        const [amount0, amount1] = getRawAmounts([trade.inputAmount, trade.outputAmount])
+        // const [amount0, amount1] = getRawAmounts([trade.inputAmount, trade.outputAmount])
+        const amount0 = trade.inputAmount.toFixed(trade.inputAmount.currency.decimals, {
+          decimalSeparator: '',
+          groupSeparator: '',
+        })
+        const amount1 = trade.outputAmount.toFixed(trade.outputAmount.currency.decimals, {
+          decimalSeparator: '',
+          groupSeparator: '',
+        })
         // console.log('amount0, amount1: ', amount0, amount1)
 
         const path = trade.route.path.map((r: Token | WrappedTokenInfo) =>
@@ -660,37 +668,26 @@ export function useSwapCallback(
         // console.log('nonce: ', nonce)
 
         const gasPrice = await library?.getGasPrice()
-        const gasLimit = (isExpertMode ? userSwapGasLimit : SWAP_GAS_LIMIT) + (path.length - 2) * HOP_ADDITIONAL_GAS
-        console.log(isExpertMode ? userSwapGasLimit : SWAP_GAS_LIMIT)
+        const userGasLimit = isExpertMode ? userSwapGasLimit : SWAP_GAS_LIMIT
+        const gasLimit = new JSBigNumber(userGasLimit + (path.length - 2) * HOP_ADDITIONAL_GAS)
         const feeOnTokenA = await calculateConveyorFeeOnToken(
           chainId,
           path[0],
           trade.inputAmount.currency.decimals,
-          gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
+          gasPrice === undefined ? undefined : gasPrice.mul(gasLimit.toString())
         )
-        const maxTokenAmount = feeOnTokenA.plus(new JSBigNumber(amount0)).toFixed(0)
-        console.log('maxTokenAmount', maxTokenAmount)
-        // console.log('fee', feeOnTokenA.toFixed(0))
-        // console.log(
-        //   'inputAmount',
-        //   trade.inputAmount.toFixed(trade.inputAmount.currency.decimals, { decimalSeparator: '', groupSeparator: '' })
-        // )
-        // console.log(
-        //   'maxAmount',
-        //   feeOnTokenA
-        //     .plus(
-        //       new JSBigNumber(
-        //         trade.inputAmount.toFixed(trade.inputAmount.currency.decimals, {
-        //           decimalSeparator: '',
-        //           groupSeparator: '',
-        //         })
-        //       )
-        //     )
-        //     .toFormat(18, {
-        //       decimalSeparator: '.',
-        //       groupSeparator: ',',
-        //     })
-        // )
+        const tokenAmount = feeOnTokenA.plus(new JSBigNumber(amount0))
+        const tokenSlippageAmount = tokenAmount.multipliedBy(new JSBigNumber(allowedSlippage.toFixed(2)).div(100))
+        const maxTokenAmount = JSBigNumber.sum(tokenAmount, tokenSlippageAmount)
+        console.log('amountA       ', amount0)
+        console.log('gasPrice      ', gasPrice.toString())
+        console.log('gasLimit      ', gasLimit.toFixed(0))
+        console.log('feeOnTokenA   ', feeOnTokenA.toFixed(0))
+        console.log('--------------')
+        console.log('fee + amountA ', tokenAmount.toFixed(0))
+        console.log('added slippage', `${tokenSlippageAmount.toFixed(0)} (${allowedSlippage.toFixed(2)}%)`)
+        console.log('max + slippage', maxTokenAmount.toFixed(0))
+        console.log('--------------')
 
         const EIP712Domain = [
           { name: 'name', type: 'string' },
@@ -739,7 +736,12 @@ export function useSwapCallback(
         const message = {
           from: user,
           feeToken: path[0],
-          maxTokenAmount: BigNumber.from(maxTokenAmount).toHexString(),
+          maxTokenAmount: BigNumber.from(
+            maxTokenAmount.toFormat(trade.inputAmount.currency.decimals, {
+              decimalSeparator: '',
+              groupSeparator: '',
+            })
+          ).toHexString(),
           // maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
           deadline: transactionDeadline.toHexString(),
           nonce: nonce.toHexString(),
@@ -764,7 +766,14 @@ export function useSwapCallback(
           // feeAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
         }
         console.log('message', message)
-        console.log('maxTokenAmount', [maxTokenAmount, message.maxTokenAmount])
+        console.log('message.maxTokenAmount', [
+          maxTokenAmount.toFormat(trade.inputAmount.currency.decimals, {
+            decimalSeparator: '',
+            groupSeparator: '',
+          }),
+          message.maxTokenAmount,
+        ])
+        console.log('message.maxTokenAmount string(16)', maxTokenAmount.toString(16))
 
         const EIP712Msg = {
           types: {
