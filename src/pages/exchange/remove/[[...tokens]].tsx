@@ -436,18 +436,40 @@ export default function Remove() {
         throw new Error('Liquidity approval failed')
       }
 
+      // const gasPrice = await library?.getGasPrice()
+      // const gasLimit = isExpertMode ? userLiquidityGasLimit : ADD_LIQUIDITY_GAS_LIMIT
+      // const feeOnTokenA = await calculateConveyorFeeOnToken(
+      //   chainId,
+      //   currencyIdA,
+      //   currencyA!.decimals,
+      //   gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
+      // )
+      // const maxTokenAmount = feeOnTokenA.plus(new JSBigNumber(parsedLiquidityAmount)).toFixed(0)
+      // console.log('parsedLiquidityAmount', parsedLiquidityAmount)
+      // console.log('amountMinA', amountsMin[Field.CURRENCY_A])
+      // console.log('amountMinB', amountsMin[Field.CURRENCY_B])
+
       const gasPrice = await library?.getGasPrice()
-      const gasLimit = isExpertMode ? userLiquidityGasLimit : ADD_LIQUIDITY_GAS_LIMIT
+      const userGasLimit = isExpertMode ? userLiquidityGasLimit : ADD_LIQUIDITY_GAS_LIMIT
+      const gasLimit = new JSBigNumber(userGasLimit)
       const feeOnTokenA = await calculateConveyorFeeOnToken(
         chainId,
         currencyIdA,
-        currencyA!.decimals,
-        gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
+        currencyA.decimals,
+        gasPrice === undefined ? undefined : gasPrice.mul(gasLimit.toString())
       )
-      const maxTokenAmount = feeOnTokenA.plus(new JSBigNumber(parsedLiquidityAmount)).toFixed(0)
-      console.log('parsedLiquidityAmount', parsedLiquidityAmount)
-      console.log('amountMinA', amountsMin[Field.CURRENCY_A])
-      console.log('amountMinB', amountsMin[Field.CURRENCY_B])
+      // const tokenAmount = feeOnTokenA.plus(new JSBigNumber(amountADesired))
+      const tokenSlippageAmount = feeOnTokenA.multipliedBy(new JSBigNumber(allowedSlippage.toFixed(2)).div(100))
+      const maxTokenAmount = JSBigNumber.sum(feeOnTokenA, tokenSlippageAmount)
+      // console.log('amountA       ', amountADesired)
+      console.log('gasPrice      ', gasPrice.toString())
+      console.log('gasLimit      ', gasLimit.toFixed(0))
+      console.log('feeOnTokenA   ', feeOnTokenA.toFixed(0))
+      console.log('--------------')
+      // console.log('fee + amountA ', tokenAmount.toFixed(0))
+      console.log('added slippage', `${tokenSlippageAmount.toFixed(0)} (${allowedSlippage.toFixed(2)}%)`)
+      console.log('fee + slippage', maxTokenAmount.toFixed(0))
+      console.log('--------------')
 
       const EIP712Domain = [
         { name: 'name', type: 'string' },
@@ -515,7 +537,7 @@ export default function Remove() {
       const message = {
         from: account,
         feeToken: currencyIdA,
-        maxTokenAmount: BigNumber.from(maxTokenAmount).toHexString(),
+        maxTokenAmount: BigNumber.from(maxTokenAmount.toFixed(0)).toHexString(),
         // maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
         deadline: deadline.toHexString(),
         nonce: nonce.toHexString(),
@@ -548,7 +570,6 @@ export default function Remove() {
       }
 
       console.log('message', message)
-      console.log('maxTokenAmount', [feeOnTokenA.toFixed(0), message.maxTokenAmount])
 
       const EIP712Msg = {
         types: {

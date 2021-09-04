@@ -282,26 +282,51 @@ export default function Add() {
       //   return
       // }
 
+      // const gasPrice = await library?.getGasPrice()
+      // const gasLimit = isExpertMode
+      //   ? userLiquidityGasLimit
+      //   : pairState === PairState.NOT_EXISTS
+      //   ? CREATE_PAIR_GAS_LIMIT
+      //   : ADD_LIQUIDITY_GAS_LIMIT
+      // const feeOnTokenA = await calculateConveyorFeeOnToken(
+      //   chainId,
+      //   currencyIdA,
+      //   currencyA.decimals,
+      //   gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
+      // )
+      // console.log('gasPrice, gasLimit', { gasPrice, gasLimit })
+      // console.log('gasPrice.toHexString', gasPrice.toHexString())
+      // const maxTokenAmount = feeOnTokenA
+      //   .plus(new JSBigNumber(amountADesired))
+      //   .plus(new JSBigNumber(amountBDesired))
+      //   .toFixed(0)
+      // console.log('liquidityMinted', liquidityMinted.toSignificant(6))
+      // console.log('maxTokenAmount', maxTokenAmount)
       const gasPrice = await library?.getGasPrice()
-      const gasLimit = isExpertMode
+      const userGasLimit = isExpertMode
         ? userLiquidityGasLimit
         : pairState === PairState.NOT_EXISTS
         ? CREATE_PAIR_GAS_LIMIT
         : ADD_LIQUIDITY_GAS_LIMIT
+      const gasLimit = new JSBigNumber(userGasLimit)
       const feeOnTokenA = await calculateConveyorFeeOnToken(
         chainId,
         currencyIdA,
         currencyA.decimals,
-        gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
+        gasPrice === undefined ? undefined : gasPrice.mul(gasLimit.toString())
       )
-      // console.log('gasPrice, gasLimit', { gasPrice, gasLimit })
-      // console.log('gasPrice.toHexString', gasPrice.toHexString())
-      const maxTokenAmount = feeOnTokenA
-        .plus(new JSBigNumber(amountADesired))
-        .plus(new JSBigNumber(amountBDesired))
-        .toFixed(0)
-      console.log('liquidityMinted', liquidityMinted.toSignificant(6))
-      console.log('maxTokenAmount', maxTokenAmount)
+      const tokenAmount = feeOnTokenA.plus(new JSBigNumber(amountADesired))
+      const tokenSlippageAmount = tokenAmount.multipliedBy(new JSBigNumber(allowedSlippage.toFixed(2)).div(100))
+      const maxTokenAmount = JSBigNumber.sum(tokenAmount, tokenSlippageAmount)
+      console.log('amountA       ', amountADesired)
+      console.log('gasPrice      ', gasPrice.toString())
+      console.log('gasLimit      ', gasLimit.toFixed(0))
+      console.log('feeOnTokenA   ', feeOnTokenA.toFixed(0))
+      console.log('--------------')
+      console.log('fee + amountA ', tokenAmount.toFixed(0))
+      console.log('added slippage', `${tokenSlippageAmount.toFixed(0)} (${allowedSlippage.toFixed(2)}%)`)
+      console.log('max + slippage', maxTokenAmount.toFixed(0))
+      console.log('--------------')
 
       const EIP712Domain = [
         { name: 'name', type: 'string' },
@@ -365,7 +390,7 @@ export default function Add() {
       const message = {
         from: account,
         feeToken: currencyIdA,
-        maxTokenAmount: BigNumber.from('99999999999999999999999').toHexString(),
+        maxTokenAmount: BigNumber.from(maxTokenAmount.toFixed(0)).toHexString(),
         // maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
         deadline: deadline.toHexString(),
         nonce: nonce.toHexString(),
