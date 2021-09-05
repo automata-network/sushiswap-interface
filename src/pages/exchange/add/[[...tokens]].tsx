@@ -318,7 +318,10 @@ export default function Add() {
       )
       const tokenAmount = feeOnTokenA.plus(new JSBigNumber(amountADesired))
       const tokenSlippageAmount = tokenAmount.multipliedBy(new JSBigNumber(allowedSlippage.toFixed(2)).div(100))
-      const maxTokenAmount = JSBigNumber.sum(tokenAmount, tokenSlippageAmount)
+      const maxTokenAmount = JSBigNumber.sum(tokenAmount, tokenSlippageAmount).shiftedBy(-18).toFormat(18, {
+        decimalSeparator: '',
+        groupSeparator: '',
+      })
       console.log('amountA       ', amountADesired)
       console.log('gasPrice      ', gasPrice.toString())
       console.log('gasLimit      ', gasLimit.toFixed(0))
@@ -326,7 +329,7 @@ export default function Add() {
       console.log('--------------')
       console.log('fee + amountA ', tokenAmount.toFixed(0))
       console.log('added slippage', `${tokenSlippageAmount.toFixed(0)} (${allowedSlippage.toFixed(2)}%)`)
-      console.log('max + slippage', maxTokenAmount.toFixed(0))
+      console.log('max + slippage', maxTokenAmount)
       console.log('--------------')
 
       const EIP712Domain = [
@@ -391,7 +394,7 @@ export default function Add() {
       const message = {
         from: account,
         feeToken: currencyA.wrapped.address,
-        maxTokenAmount: BigNumber.from('000000000005000000').toHexString(),
+        maxTokenAmount: BigNumber.from(maxTokenAmount).toHexString(),
         // maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
         deadline: deadline.toHexString(),
         nonce: nonce.toHexString(),
