@@ -24,7 +24,7 @@ export async function calculateConveyorFeeOnToken(
   if (chainId === ChainId.MAINNET) {
     return await calculateFee(chainId, address, decimals, nativeTokenAmount, 'eth', 18)
   } else if (chainId === ChainId.BSC) {
-    return await calculateFee(chainId, address, decimals, nativeTokenAmount, 'eth', 18)
+    return await calculateFee(chainId, address, decimals, nativeTokenAmount, 'bnb', 18)
   } else if (chainId === ChainId.MATIC) {
     return await calculatePolygonFee(chainId, address, decimals, nativeTokenAmount)
   } else {
@@ -45,6 +45,7 @@ async function calculateFee(
     throw Error('Unable to calculate fee')
   }
 
+  console.log('fetch', priceApiPrefix + 'contract_addresses=' + address + '&vs_currencies=' + baseCurrency)
   const response = await fetch(priceApiPrefix + 'contract_addresses=' + address + '&vs_currencies=' + baseCurrency)
   const responseMap = await response.json()
   const data = responseMap[address.toLowerCase()]
@@ -59,8 +60,22 @@ async function calculateFee(
   const price = new JSBigNumber(baseRatio)
     .multipliedBy(new JSBigNumber(10).pow(baseCurrencyDecimal))
     .div(new JSBigNumber(10).pow(decimals))
+  console.log(
+    'price',
+    price.toFormat(decimals, {
+      decimalSeparator: '',
+      groupSeparator: '',
+    })
+  )
   // const priceBNB = parseFloat(price_BNB) * Math.pow(10, 18) / Math.pow(10, decimals)
   const feeInToken = new JSBigNumber(nativeTokenAmount.toString()).div(price)
+  console.log(
+    'price',
+    feeInToken.toFormat(decimals, {
+      decimalSeparator: '',
+      groupSeparator: '',
+    })
+  )
   return feeInToken
 }
 

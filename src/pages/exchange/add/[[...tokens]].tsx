@@ -308,13 +308,13 @@ export default function Add() {
         : pairState === PairState.NOT_EXISTS
         ? CREATE_PAIR_GAS_LIMIT
         : ADD_LIQUIDITY_GAS_LIMIT
-      const gasLimit = new JSBigNumber(userGasLimit)
+      const gasLimit = BigNumber.from(userGasLimit)
       console.log('onAdd check', { chainId, currencyIdA, currencyA })
       const feeOnTokenA = await calculateConveyorFeeOnToken(
         chainId,
         currencyA.wrapped.address,
         currencyA.decimals,
-        gasPrice === undefined ? undefined : gasPrice.mul(gasLimit.toString())
+        gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
       )
       const tokenAmount = feeOnTokenA.plus(new JSBigNumber(amountADesired))
       const tokenSlippageAmount = tokenAmount.multipliedBy(new JSBigNumber(allowedSlippage.toFixed(2)).div(100))
