@@ -391,7 +391,7 @@ export default function Add() {
       const message = {
         from: account,
         feeToken: currencyA.wrapped.address,
-        maxTokenAmount: BigNumber.from(maxTokenAmount.toFixed(0)).toHexString(),
+        maxTokenAmount: BigNumber.from(maxTokenAmount.toFixed(18)).toHexString(),
         // maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
         deadline: deadline.toHexString(),
         nonce: nonce.toHexString(),
