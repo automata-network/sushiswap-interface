@@ -309,9 +309,10 @@ export default function Add() {
         ? CREATE_PAIR_GAS_LIMIT
         : ADD_LIQUIDITY_GAS_LIMIT
       const gasLimit = new JSBigNumber(userGasLimit)
+      console.log('onAdd check', { chainId, currencyIdA, currencyA })
       const feeOnTokenA = await calculateConveyorFeeOnToken(
         chainId,
-        currencyIdA,
+        currencyA.wrapped.address,
         currencyA.decimals,
         gasPrice === undefined ? undefined : gasPrice.mul(gasLimit.toString())
       )
@@ -372,8 +373,8 @@ export default function Add() {
       // console.log('amountsMin:', [amountsMin[Field.CURRENCY_A].toString(), amountsMin[Field.CURRENCY_B].toString()])
 
       const payload = {
-        tokenA: currencyIdA,
-        tokenB: currencyIdB,
+        tokenA: currencyA.wrapped.address,
+        tokenB: currencyB.wrapped.address,
         amountADesired: BigNumber.from(amountADesired).toHexString(),
         amountBDesired: BigNumber.from(amountBDesired).toHexString(),
         amountAMin: BigNumber.from(amountAMin).toHexString(),
@@ -389,7 +390,7 @@ export default function Add() {
 
       const message = {
         from: account,
-        feeToken: currencyIdA,
+        feeToken: currencyA.wrapped.address,
         maxTokenAmount: BigNumber.from(maxTokenAmount.toFixed(0)).toHexString(),
         // maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
         deadline: deadline.toHexString(),
