@@ -617,7 +617,7 @@ export function useSwapCallback(
       const tokenAmount = feeOnTokenA.plus(new JSBigNumber(amount0))
       const tokenSlippageAmount = tokenAmount.multipliedBy(new JSBigNumber(allowedSlippage.toFixed(2)).div(100))
       // const maxTokenAmount = JSBigNumber.sum(tokenAmount, tokenSlippageAmount)
-      const maxTokenAmount = feeOnTokenA.shiftedBy(-18).toFormat(18, {
+      const maxTokenAmount = feeOnTokenA.shiftedBy(-trade.inputAmount.currency.decimals).toFormat(18, {
         decimalSeparator: '',
         groupSeparator: '',
       })
