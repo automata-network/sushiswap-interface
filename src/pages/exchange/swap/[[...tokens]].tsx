@@ -461,6 +461,7 @@ export default function Swap() {
       const gasEstimation = new BigNumber(userConveyorGasEstimation).div(
         new BigNumber(10).pow(currencies[Field.INPUT]!.decimals).toString()
       )
+      console.log('gasEstimation', gasEstimation.toString())
       setConveyorGasEstimation(gasEstimation.toString())
     })()
   }, [doConveyor, currencies, userConveyorGasEstimation])
