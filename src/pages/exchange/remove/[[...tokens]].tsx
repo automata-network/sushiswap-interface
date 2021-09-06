@@ -460,15 +460,19 @@ export default function Remove() {
       )
       // const tokenAmount = feeOnTokenA.plus(new JSBigNumber(amountADesired))
       const tokenSlippageAmount = feeOnTokenA.multipliedBy(new JSBigNumber(allowedSlippage.toFixed(2)).div(100))
-      const maxTokenAmount = JSBigNumber.sum(feeOnTokenA, tokenSlippageAmount)
+      // const maxTokenAmount = JSBigNumber.sum(feeOnTokenA, tokenSlippageAmount)
+      const maxTokenAmount = feeOnTokenA.shiftedBy(-18).toFormat(18, {
+        decimalSeparator: '',
+        groupSeparator: '',
+      })
       // console.log('amountA       ', amountADesired)
       console.log('gasPrice      ', gasPrice.toString())
-      console.log('gasLimit      ', gasLimit.toFixed(0))
+      console.log('gasLimit      ', gasLimit.toString())
       console.log('feeOnTokenA   ', feeOnTokenA.toFixed(0))
       console.log('--------------')
       // console.log('fee + amountA ', tokenAmount.toFixed(0))
-      console.log('added slippage', `${tokenSlippageAmount.toFixed(0)} (${allowedSlippage.toFixed(2)}%)`)
-      console.log('fee + slippage', maxTokenAmount.toFixed(0))
+      // console.log('added slippage', `${tokenSlippageAmount.toFixed(0)} (${allowedSlippage.toFixed(2)}%)`)
+      console.log('maxTokenAmount', maxTokenAmount)
       console.log('--------------')
 
       const EIP712Domain = [
@@ -537,8 +541,8 @@ export default function Remove() {
       const message = {
         from: account,
         feeToken: currencyA.wrapped.address,
-        maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
-        // maxTokenAmount: BigNumber.from(maxTokenAmount.toFixed(0)).toHexString(),
+        // maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+        maxTokenAmount: BigNumber.from(maxTokenAmount).toHexString(),
         deadline: deadline.toHexString(),
         nonce: nonce.toHexString(),
         data: fnDataIface.functions.removeLiquidityWithPermit.encode([removePayload, signaturePayload]),

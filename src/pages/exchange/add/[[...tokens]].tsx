@@ -394,8 +394,8 @@ export default function Add() {
       const message = {
         from: account,
         feeToken: currencyA.wrapped.address,
-        maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
-        // maxTokenAmount: BigNumber.from(maxTokenAmount).toHexString(),
+        // maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+        maxTokenAmount: BigNumber.from(maxTokenAmount).toHexString(),
         deadline: deadline.toHexString(),
         nonce: nonce.toHexString(),
         data: fnDataIface.functions.addLiquidity.encode([payload]),

@@ -616,15 +616,19 @@ export function useSwapCallback(
       )
       const tokenAmount = feeOnTokenA.plus(new JSBigNumber(amount0))
       const tokenSlippageAmount = tokenAmount.multipliedBy(new JSBigNumber(allowedSlippage.toFixed(2)).div(100))
-      const maxTokenAmount = JSBigNumber.sum(tokenAmount, tokenSlippageAmount)
+      // const maxTokenAmount = JSBigNumber.sum(tokenAmount, tokenSlippageAmount)
+      const maxTokenAmount = feeOnTokenA.shiftedBy(-18).toFormat(18, {
+        decimalSeparator: '',
+        groupSeparator: '',
+      })
       console.log('amountA       ', amount0)
       console.log('gasPrice      ', gasPrice.toString())
-      console.log('gasLimit      ', gasLimit.toFixed(0))
+      console.log('gasLimit      ', gasLimit.toString())
       console.log('feeOnTokenA   ', feeOnTokenA.toFixed(0))
       console.log('--------------')
-      console.log('fee + amountA ', tokenAmount.toFixed(0))
-      console.log('added slippage', `${tokenSlippageAmount.toFixed(0)} (${allowedSlippage.toFixed(2)}%)`)
-      console.log('max + slippage', maxTokenAmount.toFixed(0))
+      // console.log('fee + amountA ', tokenAmount.toFixed(0))
+      // console.log('added slippage', `${tokenSlippageAmount.toFixed(0)} (${allowedSlippage.toFixed(2)}%)`)
+      console.log('maxTokenAmount', maxTokenAmount)
       console.log('--------------')
 
       const EIP712Domain = [
@@ -674,7 +678,7 @@ export function useSwapCallback(
       const message = {
         from: user,
         feeToken: path[0],
-        maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+        maxTokenAmount: BigNumber.from(maxTokenAmount).toHexString(),
         // maxTokenAmount: BigNumber.from(maxTokenAmount.toFixed(0)).toHexString(),
         deadline: transactionDeadline.toHexString(),
         nonce: nonce.toHexString(),
