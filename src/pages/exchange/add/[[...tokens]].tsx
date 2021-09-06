@@ -309,7 +309,7 @@ export default function Add() {
         ? CREATE_PAIR_GAS_LIMIT
         : ADD_LIQUIDITY_GAS_LIMIT
       const gasLimit = BigNumber.from(userGasLimit)
-      console.log('onAdd check', { chainId, currencyIdA, currencyA })
+      // console.log('onAdd check', { chainId, currencyIdA, currencyA })
       const feeOnTokenA = await calculateConveyorFeeOnToken(
         chainId,
         currencyA.wrapped.address,
@@ -394,8 +394,8 @@ export default function Add() {
       const message = {
         from: account,
         feeToken: currencyA.wrapped.address,
-        maxTokenAmount: BigNumber.from(maxTokenAmount).toHexString(),
-        // maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
+        maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+        // maxTokenAmount: BigNumber.from(maxTokenAmount).toHexString(),
         deadline: deadline.toHexString(),
         nonce: nonce.toHexString(),
         data: fnDataIface.functions.addLiquidity.encode([payload]),

@@ -454,7 +454,7 @@ export default function Remove() {
       const gasLimit = new JSBigNumber(userGasLimit)
       const feeOnTokenA = await calculateConveyorFeeOnToken(
         chainId,
-        currencyIdA,
+        currencyA.wrapped.address,
         currencyA.decimals,
         gasPrice === undefined ? undefined : gasPrice.mul(gasLimit.toString())
       )
@@ -509,8 +509,8 @@ export default function Remove() {
       }
 
       const removePayload = {
-        tokenA: currencyIdA,
-        tokenB: currencyIdB,
+        tokenA: currencyA.wrapped.address,
+        tokenB: currencyB.wrapped.address,
         liquidity: BigNumber.from(parsedLiquidityAmount).toHexString(),
         amountAMin: BigNumber.from(amountsMin.CURRENCY_A.toString()).toHexString(),
         amountBMin: BigNumber.from(amountsMin.CURRENCY_B.toString()).toHexString(),
@@ -536,9 +536,9 @@ export default function Remove() {
 
       const message = {
         from: account,
-        feeToken: currencyIdA,
-        maxTokenAmount: BigNumber.from(maxTokenAmount.toFixed(0)).toHexString(),
-        // maxTokenAmount: BigNumber.from(userMaxTokenAmount).toHexString(),
+        feeToken: currencyA.wrapped.address,
+        maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
+        // maxTokenAmount: BigNumber.from(maxTokenAmount.toFixed(0)).toHexString(),
         deadline: deadline.toHexString(),
         nonce: nonce.toHexString(),
         data: fnDataIface.functions.removeLiquidityWithPermit.encode([removePayload, signaturePayload]),
