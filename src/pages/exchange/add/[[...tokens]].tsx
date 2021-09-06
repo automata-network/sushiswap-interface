@@ -318,10 +318,7 @@ export default function Add() {
       )
       const tokenAmount = feeOnTokenA.plus(new JSBigNumber(amountADesired))
       const tokenSlippageAmount = tokenAmount.multipliedBy(new JSBigNumber(allowedSlippage.toFixed(2)).div(100))
-      const maxTokenAmount = feeOnTokenA.shiftedBy(-18).toFormat(18, {
-        decimalSeparator: '',
-        groupSeparator: '',
-      })
+      const maxTokenAmount = feeOnTokenA.shiftedBy(0).toFormat(currencyA.decimals, {})
       console.log('amountA       ', amountADesired)
       console.log('gasPrice      ', gasPrice.toString())
       console.log('gasLimit      ', gasLimit.toString())
