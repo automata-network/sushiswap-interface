@@ -318,18 +318,18 @@ export default function Add() {
       )
       const tokenAmount = feeOnTokenA.plus(new JSBigNumber(amountADesired))
       const tokenSlippageAmount = tokenAmount.multipliedBy(new JSBigNumber(allowedSlippage.toFixed(2)).div(100))
-      const maxTokenAmount = JSBigNumber.sum(tokenAmount, tokenSlippageAmount).shiftedBy(-18).toFormat(18, {
+      const maxTokenAmount = feeOnTokenA.shiftedBy(-18).toFormat(18, {
         decimalSeparator: '',
         groupSeparator: '',
       })
       console.log('amountA       ', amountADesired)
       console.log('gasPrice      ', gasPrice.toString())
-      console.log('gasLimit      ', gasLimit.toFixed(0))
+      console.log('gasLimit      ', gasLimit.toString())
       console.log('feeOnTokenA   ', feeOnTokenA.toFixed(0))
       console.log('--------------')
-      console.log('fee + amountA ', tokenAmount.toFixed(0))
-      console.log('added slippage', `${tokenSlippageAmount.toFixed(0)} (${allowedSlippage.toFixed(2)}%)`)
-      console.log('max + slippage', maxTokenAmount)
+      // console.log('fee + amountA ', tokenAmount.toFixed(0))
+      // console.log('added slippage', `${tokenSlippageAmount.toFixed(0)} (${allowedSlippage.toFixed(2)}%)`)
+      console.log('maxTokenAmount', maxTokenAmount)
       console.log('--------------')
 
       const EIP712Domain = [
