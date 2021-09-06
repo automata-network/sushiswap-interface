@@ -617,10 +617,12 @@ export function useSwapCallback(
       const tokenAmount = feeOnTokenA.plus(new JSBigNumber(amount0))
       const tokenSlippageAmount = tokenAmount.multipliedBy(new JSBigNumber(allowedSlippage.toFixed(2)).div(100))
       // const maxTokenAmount = JSBigNumber.sum(tokenAmount, tokenSlippageAmount)
-      const maxTokenAmount = feeOnTokenA.shiftedBy(-trade.inputAmount.currency.decimals).toFormat(18, {
-        decimalSeparator: '',
-        groupSeparator: '',
-      })
+      const maxTokenAmount = feeOnTokenA
+        .shiftedBy(-trade.inputAmount.currency.decimals)
+        .toFormat(trade.inputAmount.currency.decimals, {
+          decimalSeparator: '',
+          groupSeparator: '',
+        })
       console.log('amountA       ', amount0)
       console.log('gasPrice      ', gasPrice.toString())
       console.log('gasLimit      ', gasLimit.toString())
