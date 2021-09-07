@@ -26,7 +26,7 @@ import {
   updateUserSlippageTolerance,
   updateUserConveyorUseRelay,
   updateUserConveyorGasEstimation,
-  updateUserMaxTokenAmount,
+  // updateUserMaxTokenAmount,
   updateUserSwapGasLimit,
   updateUserLiquidityGasLimit,
 } from './actions'
@@ -78,7 +78,7 @@ export interface UserState {
   userConveyorUseRelay: boolean
   userConveyorGasEstimation: string
 
-  userMaxTokenAmount: number
+  // userMaxTokenAmount: number
   userSwapGasLimit: number
   userLiquidityGasLimit: number
 }
@@ -105,7 +105,7 @@ export const initialState: UserState = {
   userArcherTipManualOverride: false,
   userConveyorUseRelay: false,
   userConveyorGasEstimation: '',
-  userMaxTokenAmount: 12000000,
+  // userMaxTokenAmount: 12000000,
   userSwapGasLimit: SWAP_GAS_LIMIT,
   userLiquidityGasLimit: ADD_LIQUIDITY_GAS_LIMIT,
 }
@@ -127,9 +127,9 @@ export default createReducer(initialState, (builder) =>
 
       // max token amount isnt being tracked in local storage, reset to default
       // noinspection SuspiciousTypeOfGuard
-      if (typeof state.userMaxTokenAmount !== 'number') {
-        state.userMaxTokenAmount = 12000000
-      }
+      // if (typeof state.userMaxTokenAmount !== 'number') {
+      //   state.userMaxTokenAmount = 12000000
+      // }
 
       // swap gas limit isnt being tracked in local storage, reset to default
       // noinspection SuspiciousTypeOfGuard
@@ -222,9 +222,9 @@ export default createReducer(initialState, (builder) =>
     .addCase(updateUserConveyorGasEstimation, (state, action) => {
       state.userConveyorGasEstimation = action.payload.userConveyorGasEstimation
     })
-    .addCase(updateUserMaxTokenAmount, (state, action) => {
-      state.userMaxTokenAmount = action.payload.userMaxTokenAmount
-    })
+    // .addCase(updateUserMaxTokenAmount, (state, action) => {
+    //   state.userMaxTokenAmount = action.payload.userMaxTokenAmount
+    // })
     .addCase(updateUserSwapGasLimit, (state, action) => {
       state.userSwapGasLimit = action.payload.userSwapGasLimit
       state.timestamp = currentTimestamp()

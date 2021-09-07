@@ -38,7 +38,7 @@ import {
   useIsExpertMode,
   useUserArcherETHTip,
   useUserConveyorUseRelay,
-  useUserMaxTokenAmount,
+  // useUserMaxTokenAmount,
   useUserSwapGasLimit,
 } from '../state/user/hooks'
 import { CONVEYOR_RELAYER_URI } from '../config/conveyor'
@@ -268,7 +268,7 @@ export function useSwapCallback(
 
   const transactionDeadline = useTransactionDeadline()
 
-  const [userMaxTokenAmount] = useUserMaxTokenAmount()
+  // const [userMaxTokenAmount] = useUserMaxTokenAmount()
 
   const isExpertMode = useIsExpertMode()
   const [userSwapGasLimit] = useUserSwapGasLimit()

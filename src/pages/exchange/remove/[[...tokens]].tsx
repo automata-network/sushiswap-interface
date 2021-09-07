@@ -48,7 +48,7 @@ import {
   useIsExpertMode,
   useUserConveyorUseRelay,
   useUserLiquidityGasLimit,
-  useUserMaxTokenAmount,
+  // useUserMaxTokenAmount,
   useUserSlippageToleranceWithDefault,
 } from '../../../state/user/hooks'
 import { useV2LiquidityTokenPermit } from '../../../hooks/useERC20Permit'
@@ -279,7 +279,7 @@ export default function Remove() {
   // tx sending
   const addTransaction = useTransactionAdder()
 
-  const [userMaxTokenAmount] = useUserMaxTokenAmount()
+  // const [userMaxTokenAmount] = useUserMaxTokenAmount()
 
   const isExpertMode = useIsExpertMode()
 
@@ -451,20 +451,21 @@ export default function Remove() {
 
       const gasPrice = await library?.getGasPrice()
       const userGasLimit = isExpertMode ? userLiquidityGasLimit : ADD_LIQUIDITY_GAS_LIMIT
-      const gasLimit = new JSBigNumber(userGasLimit)
+      const gasLimit = BigNumber.from(userGasLimit)
       const feeOnTokenA = await calculateConveyorFeeOnToken(
         chainId,
         currencyA.wrapped.address,
         currencyA.decimals,
-        gasPrice === undefined ? undefined : gasPrice.mul(gasLimit.toString())
+        gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
       )
       // const tokenAmount = feeOnTokenA.plus(new JSBigNumber(amountADesired))
       const tokenSlippageAmount = feeOnTokenA.multipliedBy(new JSBigNumber(allowedSlippage.toFixed(2)).div(100))
       // const maxTokenAmount = JSBigNumber.sum(feeOnTokenA, tokenSlippageAmount)
-      const maxTokenAmount = feeOnTokenA.shiftedBy(-18).toFormat(18, {
-        decimalSeparator: '',
-        groupSeparator: '',
-      })
+      // const maxTokenAmount = feeOnTokenA.shiftedBy(-18).toFormat(18, {
+      //   decimalSeparator: '',
+      //   groupSeparator: '',
+      // })
+      const maxTokenAmount = feeOnTokenA.toFixed(0)
       // console.log('amountA       ', amountADesired)
       console.log('gasPrice      ', gasPrice.toString())
       console.log('gasLimit      ', gasLimit.toString())

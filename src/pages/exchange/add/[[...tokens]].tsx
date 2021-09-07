@@ -13,7 +13,7 @@ import {
   useUserConveyorGasEstimation,
   useUserConveyorUseRelay,
   useUserLiquidityGasLimit,
-  useUserMaxTokenAmount,
+  // useUserMaxTokenAmount,
   useUserSlippageToleranceWithDefault,
 } from '../../../state/user/hooks'
 
@@ -161,7 +161,7 @@ export default function Add() {
 
   const addTransaction = useTransactionAdder()
 
-  const [userMaxTokenAmount] = useUserMaxTokenAmount()
+  // const [userMaxTokenAmount] = useUserMaxTokenAmount()
 
   const [userLiquidityGasLimit] = useUserLiquidityGasLimit()
 

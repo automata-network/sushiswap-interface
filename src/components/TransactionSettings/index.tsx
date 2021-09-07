@@ -4,7 +4,7 @@ import {
   useSetUserSlippageTolerance,
   useUserConveyorUseRelay,
   useUserLiquidityGasLimit,
-  useUserMaxTokenAmount,
+  // useUserMaxTokenAmount,
   useUserSlippageTolerance,
   useUserSwapGasLimit,
   useUserTransactionTTL,
@@ -64,7 +64,7 @@ export default function TransactionSettings({ placeholderSlippage }: Transaction
   const [liquidityGasLimitInput, setLiquidityGasLimitInput] = useState('')
   const [liquidityGasLimitError, setLiquidityGasLimitError] = useState<GasLimitError | false>(false)
 
-  const [userMaxTokenAmount, setUserMaxTokenAmount] = useUserMaxTokenAmount()
+  // const [userMaxTokenAmount, setUserMaxTokenAmount] = useUserMaxTokenAmount()
   const [maxTokenAmountInput, setMaxTokenAmountInput] = useState('')
 
   useEffect(() => {
@@ -167,15 +167,15 @@ export default function TransactionSettings({ placeholderSlippage }: Transaction
     }
   }
 
-  const parseMaxTokenAmount = (value: string) => {
-    setMaxTokenAmountInput(value)
+  // const parseMaxTokenAmount = (value: string) => {
+  //   setMaxTokenAmountInput(value)
 
-    if (value.length === 0) {
-      setUserMaxTokenAmount(12000000)
-    } else {
-      setUserMaxTokenAmount(Number.parseInt(value))
-    }
-  }
+  //   if (value.length === 0) {
+  //     setUserMaxTokenAmount(12000000)
+  //   } else {
+  //     setUserMaxTokenAmount(Number.parseInt(value))
+  //   }
+  // }
 
   return (
     <div className="grid gap-4">
@@ -297,8 +297,8 @@ export default function TransactionSettings({ placeholderSlippage }: Transaction
         </div>
       </div>
 
-      {/* DEBUG PURPOSE ONLY */}
-      <div className="grid gap-2">
+      {/* CONVEYOR DEBUG PURPOSE ONLY */}
+      {/* <div className="grid gap-2">
         <div className="flex items-center">
           <Typography variant="sm" className="text-high-emphesis">
             {i18n._(t`maxTokenAmount`)}
@@ -323,7 +323,7 @@ export default function TransactionSettings({ placeholderSlippage }: Transaction
             />
           </div>
         </div>
-      </div>
+      </div> */}
 
       {isExpertMode && userConveyorUseRelay && (
         <>

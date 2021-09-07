@@ -31,7 +31,7 @@ import {
   updateUserSlippageTolerance,
   updateUserConveyorUseRelay,
   updateUserConveyorGasEstimation,
-  updateUserMaxTokenAmount,
+  // updateUserMaxTokenAmount,
   updateUserSwapGasLimit,
   updateUserLiquidityGasLimit,
 } from './actions'
@@ -459,22 +459,22 @@ export function useUserConveyorGasEstimation(): [string, (gasFee: string) => voi
   return [userConveyorGasEstimation, setUserConveyorGasEstimation]
 }
 
-export function useUserMaxTokenAmount(): [number, (tokenAmount: number) => void] {
-  const dispatch = useAppDispatch()
+// export function useUserMaxTokenAmount(): [number, (tokenAmount: number) => void] {
+//   const dispatch = useAppDispatch()
 
-  const userMaxTokenAmount = useSelector<AppState, AppState['user']['userMaxTokenAmount']>(
-    (state) => state.user.userMaxTokenAmount
-  )
+//   const userMaxTokenAmount = useSelector<AppState, AppState['user']['userMaxTokenAmount']>(
+//     (state) => state.user.userMaxTokenAmount
+//   )
 
-  const setUserMaxTokenAmount = useCallback(
-    (tokenAmount: number) => {
-      dispatch(updateUserMaxTokenAmount({ userMaxTokenAmount: tokenAmount }))
-    },
-    [dispatch]
-  )
+//   const setUserMaxTokenAmount = useCallback(
+//     (tokenAmount: number) => {
+//       dispatch(updateUserMaxTokenAmount({ userMaxTokenAmount: tokenAmount }))
+//     },
+//     [dispatch]
+//   )
 
-  return [userMaxTokenAmount, setUserMaxTokenAmount]
-}
+//   return [userMaxTokenAmount, setUserMaxTokenAmount]
+// }
 
 export function useUserSwapGasLimit(): [number, (gasLimit: number) => void] {
   const dispatch = useDispatch<AppDispatch>()
