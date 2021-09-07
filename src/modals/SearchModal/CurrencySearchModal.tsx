@@ -11,6 +11,7 @@ import { TokenList } from '@uniswap/token-lists'
 import { WrappedTokenInfo } from '../../state/lists/wrappedTokenInfo'
 import useLast from '../../hooks/useLast'
 import usePrevious from '../../hooks/usePrevious'
+import { useUserConveyorUseRelay } from '../../state/user/hooks'
 
 interface CurrencySearchModalProps {
   isOpen: boolean
@@ -65,6 +66,8 @@ function CurrencySearchModal({
   // change min height if not searching
   const minHeight = modalView === CurrencyModalView.importToken || modalView === CurrencyModalView.importList ? 40 : 75
 
+  const [userConveyorUseRelay] = useUserConveyorUseRelay()
+
   return (
     <Modal isOpen={isOpen} onDismiss={onDismiss} maxHeight={75} minHeight={minHeight} padding={1}>
       {modalView === CurrencyModalView.search ? (
@@ -79,7 +82,7 @@ function CurrencySearchModal({
           setImportToken={setImportToken}
           showManageView={() => setModalView(CurrencyModalView.manage)}
           currencyList={currencyList}
-          includeNativeCurrency={includeNativeCurrency}
+          includeNativeCurrency={!userConveyorUseRelay ? includeNativeCurrency : false}
           allowManageTokenList={allowManageTokenList}
         />
       ) : modalView === CurrencyModalView.importToken && importToken ? (

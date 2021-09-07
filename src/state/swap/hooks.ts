@@ -34,6 +34,7 @@ import {
   useUserArcherGasPrice,
   useUserArcherTipManualOverride,
   useUserConveyorGasEstimation,
+  useUserConveyorUseRelay,
   useUserSingleHopOnly,
   useUserSlippageTolerance,
   useUserSwapGasLimit,
@@ -380,10 +381,14 @@ function validatedRecipient(recipient: any): string | null {
   if (ADDRESS_REGEX.test(recipient)) return recipient
   return null
 }
-export function queryParametersToSwapState(parsedQs: ParsedQs, chainId: ChainId = ChainId.MAINNET): SwapState {
+export function queryParametersToSwapState(
+  parsedQs: ParsedQs,
+  chainId: ChainId = ChainId.MAINNET,
+  doConveyor: boolean = false
+): SwapState {
   let inputCurrency = parseCurrencyFromURLParameter(parsedQs.inputCurrency)
   let outputCurrency = parseCurrencyFromURLParameter(parsedQs.outputCurrency)
-  const eth = chainId === ChainId.CELO ? WNATIVE_ADDRESS[chainId] : 'ETH'
+  const eth = chainId === ChainId.CELO || doConveyor ? WNATIVE_ADDRESS[chainId] : 'ETH'
   const sushi = SUSHI_ADDRESS[chainId]
   if (inputCurrency === '' && outputCurrency === '') {
     inputCurrency = eth
@@ -427,10 +432,11 @@ export function useDefaultsFromURLSearch():
       }
     | undefined
   >()
+  const [userConveyorUseRelay] = useUserConveyorUseRelay()
 
   useEffect(() => {
     if (!chainId) return
-    const parsed = queryParametersToSwapState(parsedQs, chainId)
+    const parsed = queryParametersToSwapState(parsedQs, chainId, userConveyorUseRelay)
 
     dispatch(
       replaceSwapState({

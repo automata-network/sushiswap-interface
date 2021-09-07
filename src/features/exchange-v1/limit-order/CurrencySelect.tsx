@@ -9,6 +9,7 @@ import { classNames } from '../../../functions'
 import selectCoinAnimation from '../../../animation/select-coin.json'
 import { t } from '@lingui/macro'
 import { useLingui } from '@lingui/react'
+import { useUserConveyorUseRelay } from '../../../state/user/hooks'
 
 interface CurrencySelectProps {
   currency: Currency
@@ -35,6 +36,7 @@ const CurrencySelect: FC<CurrencySelectProps> = ({
 }) => {
   const { i18n } = useLingui()
   const [modalOpen, setModalOpen] = useState(false)
+  const [userConveyorUseRelay] = useUserConveyorUseRelay()
 
   const handleClick = useCallback(() => {
     if (onSelect) setModalOpen(true)
@@ -91,7 +93,7 @@ const CurrencySelect: FC<CurrencySelectProps> = ({
           otherSelectedCurrency={otherCurrency}
           showCommonBases={showCommonBases}
           currencyList={currencyList}
-          includeNativeCurrency={includeNativeCurrency}
+          includeNativeCurrency={!userConveyorUseRelay ? includeNativeCurrency : false}
           allowManageTokenList={allowManageTokenList}
         />
       )}

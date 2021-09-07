@@ -252,10 +252,8 @@ export default function Add() {
           }
         })
     } else {
-      console.log('conveyorRouterContract', conveyorRouterContract)
       // Use ConveyorV2 relay for add
       const nonce: BigNumber = await conveyorRouterContract.nonces(account)
-      console.log('nonce', nonce)
 
       const { [Field.CURRENCY_A]: parsedAmountA, [Field.CURRENCY_B]: parsedAmountB } = parsedAmounts
       if (!parsedAmountA || !parsedAmountB || !currencyA || !currencyB || !deadline) {
@@ -272,36 +270,7 @@ export default function Add() {
       })
       const amountAMin = amountsMin[Field.CURRENCY_A].toString()
       const amountBMin = amountsMin[Field.CURRENCY_B].toString()
-      console.log('amountADesired', amountADesired)
-      console.log('amountBDesired', amountBDesired)
-      console.log('amountAMin: ', amountAMin)
-      console.log('amountBMin: ', amountBMin)
 
-      // if (currencyA === ETHER || currencyB === ETHER) {
-      //   setErrorMessage('Only GToken is supported')
-      //   return
-      // }
-
-      // const gasPrice = await library?.getGasPrice()
-      // const gasLimit = isExpertMode
-      //   ? userLiquidityGasLimit
-      //   : pairState === PairState.NOT_EXISTS
-      //   ? CREATE_PAIR_GAS_LIMIT
-      //   : ADD_LIQUIDITY_GAS_LIMIT
-      // const feeOnTokenA = await calculateConveyorFeeOnToken(
-      //   chainId,
-      //   currencyIdA,
-      //   currencyA.decimals,
-      //   gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
-      // )
-      // console.log('gasPrice, gasLimit', { gasPrice, gasLimit })
-      // console.log('gasPrice.toHexString', gasPrice.toHexString())
-      // const maxTokenAmount = feeOnTokenA
-      //   .plus(new JSBigNumber(amountADesired))
-      //   .plus(new JSBigNumber(amountBDesired))
-      //   .toFixed(0)
-      // console.log('liquidityMinted', liquidityMinted.toSignificant(6))
-      // console.log('maxTokenAmount', maxTokenAmount)
       const gasPrice = await library?.getGasPrice()
       const userGasLimit = isExpertMode
         ? userLiquidityGasLimit
@@ -309,26 +278,20 @@ export default function Add() {
         ? CREATE_PAIR_GAS_LIMIT
         : ADD_LIQUIDITY_GAS_LIMIT
       const gasLimit = BigNumber.from(userGasLimit)
-      // console.log('onAdd check', { chainId, currencyIdA, currencyA })
       const feeOnTokenA = await calculateConveyorFeeOnToken(
         chainId,
         currencyA.wrapped.address,
         currencyA.decimals,
         gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
       )
-      const tokenAmount = feeOnTokenA.plus(new JSBigNumber(amountADesired))
-      const tokenSlippageAmount = tokenAmount.multipliedBy(new JSBigNumber(allowedSlippage.toFixed(2)).div(100))
-      // const maxTokenAmount = feeOnTokenA.shiftedBy(0).toFormat(currencyA.decimals, {})
       const maxTokenAmount = feeOnTokenA.toFixed(0)
-      console.log('amountA       ', amountADesired)
-      console.log('gasPrice      ', gasPrice.toString())
-      console.log('gasLimit      ', gasLimit.toString())
-      console.log('feeOnTokenA   ', feeOnTokenA.toString())
-      console.log('--------------')
-      // console.log('fee + amountA ', tokenAmount.toFixed(0))
-      // console.log('added slippage', `${tokenSlippageAmount.toFixed(0)} (${allowedSlippage.toFixed(2)}%)`)
-      console.log('maxTokenAmount', maxTokenAmount)
-      console.log('--------------')
+
+      console.table({
+        inputAmountA: amountADesired,
+        baseGasPrice: gasPrice.toString(),
+        gasLimit: gasLimit.toString(),
+        maxTokenAmount: maxTokenAmount,
+      })
 
       const EIP712Domain = [
         { name: 'name', type: 'string' },
@@ -347,16 +310,16 @@ export default function Add() {
         { name: 'hashedPayload', type: 'bytes32' },
       ]
 
-      const AddLiquidity = [
-        { name: 'tokenA', type: 'address' },
-        { name: 'tokenB', type: 'address' },
-        { name: 'amountADesired', type: 'uint256' },
-        { name: 'amountBDesired', type: 'uint256' },
-        { name: 'amountAMin', type: 'uint256' },
-        { name: 'amountBMin', type: 'uint256' },
-        { name: 'user', type: 'address' },
-        { name: 'deadline', type: 'uint256' },
-      ]
+      // const AddLiquidity = [
+      //   { name: 'tokenA', type: 'address' },
+      //   { name: 'tokenB', type: 'address' },
+      //   { name: 'amountADesired', type: 'uint256' },
+      //   { name: 'amountBDesired', type: 'uint256' },
+      //   { name: 'amountAMin', type: 'uint256' },
+      //   { name: 'amountBMin', type: 'uint256' },
+      //   { name: 'user', type: 'address' },
+      //   { name: 'deadline', type: 'uint256' },
+      // ]
 
       const domain = {
         name: 'ConveyorV2',
@@ -364,14 +327,6 @@ export default function Add() {
         chainId: BigNumber.from(chainId).toHexString(),
         verifyingContract: CONVEYOR_V2_ROUTER_ADDRESS[chainId],
       }
-
-      // console.log('parsedAmounts:', { parsedAmountA, parsedAmountB })
-      // console.log('formattedParsedAmounts:', {
-      //   parsedAmountA: parsedAmountA.toFixed(18, { decimalSeparator: '', groupSeparator: '' }),
-      //   parsedAmountB: parsedAmountB.toFixed(18, { decimalSeparator: '', groupSeparator: '' }),
-      // })
-      // console.log('parsedAmounts:', { parsedAmountA, parsedAmountB })
-      // console.log('amountsMin:', [amountsMin[Field.CURRENCY_A].toString(), amountsMin[Field.CURRENCY_B].toString()])
 
       const payload = {
         tokenA: currencyA.wrapped.address,
@@ -392,7 +347,6 @@ export default function Add() {
       const message = {
         from: account,
         feeToken: currencyA.wrapped.address,
-        // maxTokenAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
         maxTokenAmount: BigNumber.from(maxTokenAmount).toHexString(),
         deadline: deadline.toHexString(),
         nonce: nonce.toHexString(),
@@ -410,21 +364,8 @@ export default function Add() {
             ]
           )
         ),
-        // tokenA: currencyIdA,
-        // tokenB: currencyIdB,
-        // amountADesired: BigNumber.from(amountADesired).toHexString(),
-        // amountBDesired: BigNumber.from(amountBDesired).toHexString(),
-        // amountAMin: BigNumber.from(amountAMin).toHexString(),
-        // amountBMin: BigNumber.from(amountBMin).toHexString(),
-        // user: account,
-        // nonce: nonce.toHexString(),
-        // deadline: deadline.toHexString(),
-        // feeAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
-        // feeToken: currencyIdA,
       }
-
       console.log('message', message)
-      // console.log('maxTokenAmount', [feeOnTokenA.toFixed(0), message.maxTokenAmount])
 
       const EIP712Msg = {
         types: {
@@ -445,7 +386,6 @@ export default function Add() {
           const { v, r, s } = splitSignature(signature)
 
           const params = [chainId, EIP712Msg, v.toString(), r, s]
-          // console.log('params: ', params)
 
           const jsonrpcRequest = {
             jsonrpc: '2.0',
@@ -461,10 +401,8 @@ export default function Add() {
             },
             body: JSON.stringify(jsonrpcRequest),
           }
-          // const environment = process.env.REACT_APP_ENVIRONMENT ? process.env.REACT_APP_ENVIRONMENT : 'staging'
-          const jsonrpcResponse = await fetch(CONVEYOR_RELAYER_URI[chainId]!, requestOptions)
-          console.log('jsonrpcRequest', jsonrpcRequest)
 
+          const jsonrpcResponse = await fetch(CONVEYOR_RELAYER_URI[chainId]!, requestOptions)
           const { result: response } = await jsonrpcResponse.json()
           console.log('response', response)
 

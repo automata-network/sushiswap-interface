@@ -22,6 +22,7 @@ import { useOnClickOutside } from '../../hooks/useOnClickOutside'
 import { useRouter } from 'next/router'
 import useToggle from '../../hooks/useToggle'
 import { useTokenComparator } from './sorting'
+import { useUserConveyorUseRelay } from '../../state/user/hooks'
 
 interface CurrencySearchProps {
   isOpen: boolean
@@ -173,6 +174,9 @@ export function CurrencySearch({
   const filteredInactiveTokens = useSearchInactiveTokenLists(
     filteredTokens.length === 0 || (debouncedQuery.length > 2 && !isAddressSearch) ? debouncedQuery : undefined
   )
+
+  const [userConveyorUseRelay] = useUserConveyorUseRelay()
+  includeNativeCurrency = userConveyorUseRelay ? false : includeNativeCurrency
 
   return (
     <div className="flex flex-col max-h-[inherit]">

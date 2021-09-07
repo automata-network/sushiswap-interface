@@ -464,7 +464,7 @@ export default function Swap() {
       console.log('gasEstimation', gasEstimation.toString())
       setConveyorGasEstimation(gasEstimation.toString())
     })()
-  }, [doConveyor, currencies, userConveyorGasEstimation])
+  }, [currencies])
 
   return (
     <Container id="swap-page" className="py-4 md:py-8 lg:py-12">
