@@ -409,6 +409,8 @@ export default function Add() {
           setAttemptingTxn(false)
 
           if (response.success === true) {
+            console.log('response', response)
+
             addTransaction(
               { hash: response.txnHash },
               {

@@ -184,6 +184,9 @@ const TransactionConfirmationModal: FC<ConfirmationModalProps> = ({
 
   if (!chainId) return null
 
+  console.log('attemptingTxn', attemptingTxn)
+  console.log('hash', hash)
+
   // confirmation screen
   return (
     <Modal isOpen={isOpen} onDismiss={onDismiss} maxHeight={90}>
