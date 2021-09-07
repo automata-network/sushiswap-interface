@@ -601,7 +601,7 @@ export default function Add() {
     ;(() => {
       if (!userConveyorUseRelay) return
       if (userConveyorGasEstimation === '') return
-      if (typeof currencyA === 'undefined') return
+      if (typeof currencyA === 'undefined' || currencyA === null) return
 
       const gasEstimation = new JSBigNumber(userConveyorGasEstimation).div(
         new JSBigNumber(10).pow(currencyA!.decimals).toString()
