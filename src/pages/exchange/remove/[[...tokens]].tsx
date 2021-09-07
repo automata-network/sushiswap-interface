@@ -632,6 +632,7 @@ export default function Remove() {
         )
 
         setTxHash(response.txnHash)
+        setConveyorSignatureData(null)
       } else {
         console.error(response.errorMessage)
         return
