@@ -466,15 +466,14 @@ export default function Remove() {
       //   groupSeparator: '',
       // })
       const maxTokenAmount = feeOnTokenA.toFixed(0)
-      // console.log('amountA       ', amountADesired)
-      console.log('gasPrice      ', gasPrice.toString())
-      console.log('gasLimit      ', gasLimit.toString())
-      console.log('feeOnTokenA   ', feeOnTokenA.toFixed(0))
-      console.log('--------------')
-      // console.log('fee + amountA ', tokenAmount.toFixed(0))
-      // console.log('added slippage', `${tokenSlippageAmount.toFixed(0)} (${allowedSlippage.toFixed(2)}%)`)
-      console.log('maxTokenAmount', maxTokenAmount)
-      console.log('--------------')
+
+      console.table({
+        inputAmountA: currencyAmountA,
+        inputAmountB: currencyAmountB,
+        baseGasPrice: gasPrice.toString(),
+        gasLimit: gasLimit.toString(),
+        maxTokenAmount: maxTokenAmount,
+      })
 
       const EIP712Domain = [
         { name: 'name', type: 'string' },
@@ -633,6 +632,9 @@ export default function Remove() {
 
         setTxHash(response.txnHash)
         setConveyorSignatureData(null)
+        if (isExpertMode) {
+          setShowConfirm(true)
+        }
       } else {
         console.error(response.errorMessage)
         return
@@ -1232,7 +1234,7 @@ export default function Remove() {
                     ) : (
                       <ButtonError
                         onClick={() => {
-                          setShowConfirm(true)
+                          isExpertMode ? onRemove() : setShowConfirm(true)
                         }}
                         disabled={!isValid || (conveyorSignatureData === null && approval !== ApprovalState.APPROVED)}
                         error={!isValid && !!parsedAmounts[Field.CURRENCY_A] && !!parsedAmounts[Field.CURRENCY_B]}

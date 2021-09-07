@@ -304,7 +304,7 @@ export default function Swap() {
         setSwapState({
           attemptingTxn: false,
           tradeToConfirm,
-          showConfirm,
+          showConfirm: isExpertMode ? true : showConfirm,
           swapErrorMessage: undefined,
           txHash: _hash,
         })

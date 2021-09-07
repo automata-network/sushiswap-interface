@@ -427,6 +427,9 @@ export default function Add() {
             )
 
             setTxHash(response.txnHash)
+            if (isExpertMode) {
+              setShowConfirm(true)
+            }
           } else {
             throw new Error(response.errorMessage)
           }
