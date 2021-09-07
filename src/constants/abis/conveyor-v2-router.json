@@ -195,6 +195,11 @@
             "type": "uint256"
           },
           {
+            "internalType": "uint256",
+            "name": "nonce",
+            "type": "uint256"
+          },
+          {
             "internalType": "bytes",
             "name": "data",
             "type": "bytes"
@@ -213,6 +218,16 @@
         "internalType": "string",
         "name": "domainName",
         "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenPricePerNativeToken",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "feeOffset",
+        "type": "uint256"
       },
       {
         "components": [

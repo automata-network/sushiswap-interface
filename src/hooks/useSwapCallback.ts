@@ -606,27 +606,22 @@ export function useSwapCallback(
       const [amount0, amount1] = [toRawAmount(trade.inputAmount), toRawAmount(trade.outputAmount)]
 
       const gasPrice = await library?.getGasPrice()
-      const userGasLimit = isExpertMode ? userSwapGasLimit : SWAP_GAS_LIMIT
-      const gasLimit = new JSBigNumber(userGasLimit + (path.length - 2) * HOP_ADDITIONAL_GAS)
+      const userGasLimit = BigNumber.from(isExpertMode ? userSwapGasLimit : SWAP_GAS_LIMIT)
+      const gasLimit = userGasLimit.add(BigNumber.from((path.length - 2) * HOP_ADDITIONAL_GAS))
       const feeOnTokenA = await calculateConveyorFeeOnToken(
         chainId,
         path[0],
         trade.inputAmount.currency.decimals,
         gasPrice === undefined ? undefined : gasPrice.mul(gasLimit.toString())
       )
-      const tokenAmount = feeOnTokenA.plus(new JSBigNumber(amount0))
-      const tokenSlippageAmount = tokenAmount.multipliedBy(new JSBigNumber(allowedSlippage.toFixed(2)).div(100))
-      // const maxTokenAmount = JSBigNumber.sum(tokenAmount, tokenSlippageAmount)
       const maxTokenAmount = feeOnTokenA.toFixed(0)
-      console.log('amountA       ', amount0)
-      console.log('gasPrice      ', gasPrice.toString())
-      console.log('gasLimit      ', gasLimit.toString())
-      console.log('feeOnTokenA   ', feeOnTokenA.toFixed(0))
-      console.log('--------------')
-      // console.log('fee + amountA ', tokenAmount.toFixed(0))
-      // console.log('added slippage', `${tokenSlippageAmount.toFixed(0)} (${allowedSlippage.toFixed(2)}%)`)
-      console.log('maxTokenAmount', maxTokenAmount)
-      console.log('--------------')
+
+      console.table({
+        inputAmountA: amount0,
+        baseGasPrice: gasPrice.toString(),
+        gasLimit: gasLimit.toString(),
+        maxTokenAmount: maxTokenAmount,
+      })
 
       const EIP712Domain = [
         { name: 'name', type: 'string' },
@@ -676,7 +671,6 @@ export function useSwapCallback(
         from: user,
         feeToken: path[0],
         maxTokenAmount: BigNumber.from(maxTokenAmount).toHexString(),
-        // maxTokenAmount: BigNumber.from(maxTokenAmount.toFixed(0)).toHexString(),
         deadline: transactionDeadline.toHexString(),
         nonce: nonce.toHexString(),
         data: fnDataIface.functions.swapExactTokensForTokens.encode([payload]),
@@ -699,6 +693,13 @@ export function useSwapCallback(
         ),
       }
       console.log('message', message)
+
+      // const gasMethod = await(await conveyorRouter.estimateGas.swapExactTokensForTokens()).toHexString
+      // console.log('gasMethod', gasMethod)
+      // const latestBlock = await library.getBlock('0x0d301c9273e5d288da0d3f3389715478b687245daa7193fe0ad2e4339986fc50')
+      // console.log('latestBlock', latestBlock)
+      // const blockGas = latestBlock.gasLimit
+      // console.log('blockGas', blockGas)
 
       const EIP712Msg = {
         types: {
