@@ -49,6 +49,11 @@ export default function SettingsTab({ placeholderSlippage }: { placeholderSlippa
   const [userUseArcher, setUserUseArcher] = useUserArcherUseRelay()
 
   const [userUseConveyor, setUserUseConveyor] = useUserConveyorUseRelay()
+  const conveyorSupportedChain: readonly number[] = [
+    ChainId.MAINNET,
+    // ChainId.BSC,
+    ChainId.MATIC,
+  ]
 
   const wrappedCurrency = useCurrency(WNATIVE_ADDRESS[chainId])
   const swapState = useSwapState()
@@ -96,8 +101,7 @@ export default function SettingsTab({ placeholderSlippage }: { placeholderSlippa
   }, [nextRouter, userUseConveyor, swapState, wrappedCurrency, setUserUseConveyor, onCurrencySelection])
 
   useEffect(() => {
-    const conveyorIsSupported = chainId === ChainId.MAINNET || chainId === ChainId.BSC || chainId === ChainId.MATIC
-    if (!conveyorIsSupported && userUseConveyor) {
+    if (!conveyorSupportedChain.includes(chainId) && userUseConveyor) {
       setUserUseConveyor(false)
     }
   }, [chainId, userUseConveyor, setUserUseConveyor])
@@ -181,7 +185,7 @@ export default function SettingsTab({ placeholderSlippage }: { placeholderSlippa
                 />
               </div>
             )} */}
-            {(chainId === ChainId.MAINNET || chainId === ChainId.BSC || chainId === ChainId.MATIC) && (
+            {conveyorSupportedChain.includes(chainId) && (
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <Typography variant="sm" className="text-primary">
