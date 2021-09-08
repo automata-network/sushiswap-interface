@@ -728,8 +728,9 @@ export function useSwapCallback(
           //if this trade is a multihop trade, we should use the last SWAP event data
           console.log(`TLog: log ${i}`, log)
           if (
-            log.topics[0] === '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822' &&
-            log.logIndex > lastUsedLogIndex
+            log.topics[0] === '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822'
+            // &&
+            // log.logIndex > lastUsedLogIndex
           ) {
             const iface = new Interface([
               'event Swap(address indexed sender,uint amount0In,uint amount1In,uint amount0Out,uint amount1Out,address indexed to)',
@@ -748,7 +749,7 @@ export function useSwapCallback(
             })
             savedLoss = amountOut.minus(minAmountOut)
             console.log(`TLog: savedLoss ${i}`, savedLoss.toString())
-            lastUsedLogIndex = log.logIndex
+            // lastUsedLogIndex = log.logIndex
           }
           i += 1
         }
