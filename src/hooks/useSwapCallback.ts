@@ -745,17 +745,17 @@ export function useSwapCallback(
               trade.outputAmount.toFixed(trade.outputAmount.currency.decimals),
               16
             )
-            // console.log(`TLog: amounts ${i}`, {
-            //   amount1Out: amount1Out.toString(),
-            //   amount0Out: amount0Out.toString(),
-            //   amountOut: amountOut.toString(),
-            //   minAmountOut: minAmountOut.toString(),
-            // })
+            console.log(`TLog: amounts ${i}`, {
+              amount1Out: amount1Out.toString(),
+              amount0Out: amount0Out.toString(),
+              amountOut: amountOut.toString(),
+              minAmountOut: minAmountOut.toString(),
+            })
             let potentialLoss = amountOut.minus(minAmountOut)
             if (potentialLoss.isLessThan(0)) {
               potentialLoss = potentialLoss.abs()
             }
-            // console.log(`TLog: potentialLoss ${i}`, potentialLoss.toString())
+            console.log(`TLog: potentialLoss ${i}`, potentialLoss.toString())
             savedLoss = typeof savedLoss === 'undefined' ? potentialLoss : savedLoss.minus(potentialLoss)
             // lastUsedLogIndex = log.logIndex
           }
