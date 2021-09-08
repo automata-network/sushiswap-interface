@@ -272,6 +272,8 @@ export default function Swap() {
   const maxInputAmount: CurrencyAmount<Currency> | undefined = maxAmountSpend(currencyBalances[Field.INPUT])
   const showMaxButton = Boolean(maxInputAmount?.greaterThan(0) && !parsedAmounts[Field.INPUT]?.equalTo(maxInputAmount))
 
+  const [conveyorPreventedLoss, setConveyorPreventedLoss] = useState<string | undefined>(undefined)
+
   // the callback to execute the swap
   const { callback: swapCallback, error: swapCallbackError } = useSwapCallback(
     trade,
@@ -300,6 +302,10 @@ export default function Swap() {
     swapCallback()
       .then((hash) => {
         let _hash = typeof hash === 'string' ? hash : hash.txHash
+
+        if (doConveyor && typeof hash === 'object' && 'preventedLoss' in hash) {
+          setConveyorPreventedLoss(hash.preventedLoss)
+        }
 
         setSwapState({
           attemptingTxn: false,
@@ -502,6 +508,7 @@ export default function Swap() {
             swapErrorMessage={swapErrorMessage}
             onDismiss={handleConfirmDismiss}
             minerBribe={doArcher ? archerETHTip : undefined}
+            preventedLoss={doConveyor ? conveyorPreventedLoss : undefined}
           />
           <div>
             <div>

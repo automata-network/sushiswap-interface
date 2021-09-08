@@ -11,6 +11,9 @@ import { computeRealizedLPFeePercent } from '../../../functions/prices'
 import { t } from '@lingui/macro'
 import { useActiveWeb3React } from '../../../hooks/useActiveWeb3React'
 import { useLingui } from '@lingui/react'
+import { computeSlippageAdjustedAmounts } from '../../../functions/conveyor/helpers'
+import { Field } from '../../../state/swap/actions'
+import { useUserConveyorUseRelay } from '../../../state/user/hooks'
 
 export interface AdvancedSwapDetailsProps {
   trade?: V2Trade<Currency, Currency, TradeType>
@@ -33,6 +36,14 @@ export function AdvancedSwapDetails({ trade, allowedSlippage, minerBribe }: Adva
 
     return { priceImpact, realizedLPFee }
   }, [trade])
+
+  const [useConveyor] = useUserConveyorUseRelay()
+
+  const isExactIn = trade.tradeType === TradeType.EXACT_INPUT
+  const slippageAdjustedAmounts = computeSlippageAdjustedAmounts(trade, allowedSlippage)
+  const potentialMEVProtection = isExactIn
+    ? trade.outputAmount.subtract(slippageAdjustedAmounts[Field.OUTPUT]!)
+    : slippageAdjustedAmounts[Field.INPUT]?.subtract(trade.inputAmount)
 
   return !trade ? null : (
     <div className="flex flex-col space-y-2">
@@ -72,6 +83,24 @@ export function AdvancedSwapDetails({ trade, allowedSlippage, minerBribe }: Adva
         </RowFixed>
         <FormattedPriceImpact priceImpact={priceImpact} />
       </RowBetween>
+
+      {useConveyor && (
+        <RowBetween>
+          <RowFixed>
+            <div className="text-sm text-secondary">{i18n._(t`Potential MEV Protection`)}</div>
+            <QuestionHelper text={i18n._(t`Based on the minimum received amount and estimated received amount.`)} />
+          </RowFixed>
+          <RowFixed>
+            <div className="text-sm font-bold text-high-emphesis">
+              {potentialMEVProtection
+                ? isExactIn
+                  ? `${potentialMEVProtection.toSignificant(4)} ${trade.inputAmount.currency.symbol}`
+                  : `${potentialMEVProtection.toSignificant(6)} ${trade.outputAmount.currency.symbol}`
+                : '-'}
+            </div>
+          </RowFixed>
+        </RowBetween>
+      )}
 
       <RowBetween>
         <RowFixed>
