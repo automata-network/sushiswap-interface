@@ -747,7 +747,8 @@ export function useSwapCallback(
               amountOut: amountOut.toString(),
               minAmountOut: minAmountOut.toString(),
             })
-            savedLoss = amountOut.minus(minAmountOut)
+            const potentialLoss = amountOut.minus(minAmountOut).abs()
+            savedLoss = typeof savedLoss === 'undefined' ? potentialLoss : savedLoss.minus(potentialLoss)
             console.log(`TLog: savedLoss ${i}`, savedLoss.toString())
             // lastUsedLogIndex = log.logIndex
           }
@@ -755,8 +756,8 @@ export function useSwapCallback(
         }
 
         let preventedLoss: string | undefined = undefined
-        savedLoss = savedLoss.isLessThan(0) ? savedLoss.abs() : savedLoss
-        console.log('TLog: savedLoss', savedLoss.toString())
+        // savedLoss = savedLoss.isLessThan(0) ? savedLoss.abs() : savedLoss
+        console.log('TLog: final savedLoss', savedLoss.toString())
         if (savedLoss !== undefined) {
           preventedLoss =
             savedLoss.div(new JSBigNumber(10).pow(trade.outputAmount.currency.decimals)).toPrecision(6) +

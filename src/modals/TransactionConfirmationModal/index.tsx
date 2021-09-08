@@ -76,16 +76,16 @@ export const TransactionSubmittedContent: FC<TransactionSubmittedContentProps> =
       </div>
       <div className="flex flex-col items-center justify-center gap-1">
         <div className="text-xl font-bold">{i18n._(t`Transaction Submitted`)}</div>
+        {preventedLoss && hash && (
+          <RowFixed>
+            <div style={{ fontWeight: 500, fontSize: 14, paddingBottom: 4 }}>MEV protection: {preventedLoss}</div>
+            {/* <QuestionHelper text="Based on the minimum received amount and actual received amount" /> */}
+          </RowFixed>
+        )}
         {chainId && hash && (
           <ExternalLink href={getExplorerLink(chainId, hash, 'transaction')}>
             <div className="font-bold text-blue">View on explorer</div>
           </ExternalLink>
-        )}
-        {preventedLoss && hash && (
-          <RowFixed>
-            <div style={{ fontWeight: 500, fontSize: 14 }}>MEV protection: {preventedLoss}</div>
-            {/* <QuestionHelper text="Based on the minimum received amount and actual received amount" /> */}
-          </RowFixed>
         )}
         {currencyToAdd && library?.provider?.isMetaMask && (
           <Button color="gradient" onClick={addToken} className="w-auto mt-4">
