@@ -755,6 +755,7 @@ export function useSwapCallback(
 
         let preventedLoss: string | undefined = undefined
         savedLoss = savedLoss.isLessThan(0) ? savedLoss.abs() : savedLoss
+        console.log('TLog: savedLoss', savedLoss.toString())
         if (savedLoss !== undefined) {
           preventedLoss =
             savedLoss.div(new JSBigNumber(10).pow(trade.outputAmount.currency.decimals)).toPrecision(6) +
