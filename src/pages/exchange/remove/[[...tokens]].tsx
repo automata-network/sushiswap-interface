@@ -683,8 +683,12 @@ export default function Remove() {
   const liquidityPercentChangeCallback = useCallback(
     (value: string) => {
       onUserInput(Field.LIQUIDITY_PERCENT, value)
+
+      if (conveyorSignatureData !== null) {
+        setConveyorSignatureData(null)
+      }
     },
-    [onUserInput]
+    [conveyorSignatureData, onUserInput]
   )
 
   const oneCurrencyIsETH = currencyA?.isNative || currencyB?.isNative
