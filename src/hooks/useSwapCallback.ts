@@ -739,7 +739,7 @@ export function useSwapCallback(
             const amount1Out: JSBigNumber = new JSBigNumber(logDescription.args.amount1Out.toString())
             const amount0Out: JSBigNumber = new JSBigNumber(logDescription.args.amount0Out.toString())
             const amountOut = amount1Out.eq(0) ? amount0Out : amount1Out
-            const minAmountOut: JSBigNumber = new JSBigNumber(amount1, 16)
+            const minAmountOut: JSBigNumber = new JSBigNumber(amount1)
             console.log(`TLog: amounts ${i}`, {
               amount1Out: amount1Out.toString(),
               amount0Out: amount0Out.toString(),
