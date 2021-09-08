@@ -44,12 +44,24 @@ import { useLingui } from '@lingui/react'
 import { useRouter } from 'next/router'
 import { useTransactionAdder } from '../../../state/transactions/hooks'
 import useTransactionDeadline from '../../../hooks/useTransactionDeadline'
-import { useUserConveyorUseRelay, useUserSlippageToleranceWithDefault } from '../../../state/user/hooks'
+import {
+  useIsExpertMode,
+  useUserConveyorUseRelay,
+  useUserLiquidityGasLimit,
+  // useUserMaxTokenAmount,
+  useUserSlippageToleranceWithDefault,
+} from '../../../state/user/hooks'
 import { useV2LiquidityTokenPermit } from '../../../hooks/useERC20Permit'
 import { useWalletModalToggle } from '../../../state/application/hooks'
 import { calculateConveyorFeeOnToken } from '../../../functions/conveyorFee'
 import { ADD_LIQUIDITY_GAS_LIMIT } from '../../../constants'
 import { CONVEYOR_RELAYER_URI } from '../../../config/conveyor'
+import { utils } from 'ethers'
+import { BigNumber as JSBigNumber } from 'bignumber.js'
+import { toRawAmount } from '../../../functions/conveyor/helpers'
+import { EIP712_DOMAIN_TYPE, FORWARDER_TYPE, PERMIT_TYPE } from '../../../constants/abis/conveyor-v2'
+
+const { keccak256, toUtf8Bytes, defaultAbiCoder, Interface } = utils
 
 const DEFAULT_REMOVE_LIQUIDITY_SLIPPAGE_TOLERANCE = new Percent(5, 100)
 
@@ -157,45 +169,9 @@ export default function Remove() {
       if (!currencyAmountA || !currencyAmountB) {
         throw new Error('missing currency amounts')
       }
-      const amountsMin = {
-        [Field.CURRENCY_A]: calculateSlippageAmount(currencyAmountA, allowedSlippage)[0],
-        [Field.CURRENCY_B]: calculateSlippageAmount(currencyAmountB, allowedSlippage)[0],
-      }
-
-      const gasPrice = await library?.getGasPrice()
-      const gasLimit = ADD_LIQUIDITY_GAS_LIMIT
-      const feeOnTokenA = await calculateConveyorFeeOnToken(
-        chainId,
-        currencyIdA,
-        currencyA!.decimals,
-        gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
-      )
 
       // try to gather a signature for permission
       const nonce = await pairContract.nonces(account)
-
-      const EIP712Domain = [
-        { name: 'name', type: 'string' },
-        { name: 'version', type: 'string' },
-        { name: 'chainId', type: 'uint256' },
-        { name: 'verifyingContract', type: 'address' },
-      ]
-
-      const Permit = [
-        { name: 'owner', type: 'address' },
-        { name: 'spender', type: 'address' },
-        { name: 'tokenA', type: 'address' },
-        { name: 'tokenB', type: 'address' },
-        { name: 'amountAMin', type: 'uint256' },
-        { name: 'amountBMin', type: 'uint256' },
-        { name: 'value', type: 'uint256' },
-        { name: 'nonce', type: 'uint256' },
-        { name: 'deadline', type: 'uint256' },
-        { name: 'feeAmount', type: 'uint256' },
-        { name: 'feeToken', type: 'address' },
-      ]
-
-      // console.log(pair)
 
       const domain = {
         name: 'Conveyor V2',
@@ -207,32 +183,22 @@ export default function Remove() {
       const message = {
         owner: account,
         spender: conveyorRouterContract?.address,
-        tokenA: currencyIdA,
-        tokenB: currencyIdB,
-        amountAMin: BigNumber.from(amountsMin.CURRENCY_A.toString()).toHexString(),
-        amountBMin: BigNumber.from(amountsMin.CURRENCY_B.toString()).toHexString(),
         value: BigNumber.from(parsedLiquidityAmount).toHexString(),
         nonce: nonce.toHexString(),
         deadline: deadline.toHexString(),
-        feeAmount: BigNumber.from(feeOnTokenA.toFixed(0)).toHexString(),
-        feeToken: currencyIdA,
       }
 
       const _EIP712Msg = {
         types: {
-          EIP712Domain,
-          Permit,
+          EIP712Domain: EIP712_DOMAIN_TYPE,
+          Permit: PERMIT_TYPE,
         },
         domain,
         primaryType: 'Permit',
         message,
       }
 
-      // console.log('account: ', account)
-      // console.log('EIP712Msg account: ', _EIP712Msg)
-
       const data = JSON.stringify(_EIP712Msg)
-      // console.log('data:', data)
 
       // Here we use state so we can retrieve the value later in onRemove callback
       setEIP712Msg(_EIP712Msg)
@@ -267,6 +233,12 @@ export default function Remove() {
   // tx sending
   const addTransaction = useTransactionAdder()
 
+  // const [userMaxTokenAmount] = useUserMaxTokenAmount()
+
+  const isExpertMode = useIsExpertMode()
+
+  const [userLiquidityGasLimit] = useUserLiquidityGasLimit()
+
   async function onRemove() {
     if (!chainId || !library || !account || !deadline || !router) throw new Error('missing dependencies')
     const { [Field.CURRENCY_A]: currencyAmountA, [Field.CURRENCY_B]: currencyAmountB } = parsedAmounts
@@ -280,8 +252,11 @@ export default function Remove() {
     }
 
     if (!currencyA || !currencyB) throw new Error('missing tokens')
+
     const liquidityAmount = parsedAmounts[Field.LIQUIDITY]
     if (!liquidityAmount) throw new Error('missing liquidity amount')
+
+    const parsedLiquidityAmount = toRawAmount(liquidityAmount)
 
     if (!userConveyorUseRelay) {
       // Default sushi removal process
@@ -409,25 +384,120 @@ export default function Remove() {
       }
     } else {
       // RPC call for Conveyor v2 removal process
-      // console.log('signatureData: ', signatureData)
       if (conveyorSignatureData === null) {
         throw new Error('Liquidity approval failed')
       }
 
+      const gasPrice = await library?.getGasPrice()
+      const userGasLimit = isExpertMode ? userLiquidityGasLimit : ADD_LIQUIDITY_GAS_LIMIT
+      const gasLimit = BigNumber.from(userGasLimit)
+      const feeOnTokenA = await calculateConveyorFeeOnToken(
+        chainId,
+        currencyA.wrapped.address,
+        currencyA.decimals,
+        gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
+      )
+      const maxTokenAmount = feeOnTokenA.toFixed(0)
+
+      console.table({
+        inputAmountA: currencyAmountA,
+        inputAmountB: currencyAmountB,
+        baseGasPrice: gasPrice.toString(),
+        gasLimit: gasLimit.toString(),
+        maxTokenAmount: maxTokenAmount,
+      })
+
+      const domain = {
+        name: 'Conveyor V2',
+        version: '1',
+        chainId: BigNumber.from(chainId).toHexString(),
+        verifyingContract: conveyorRouterContract.address,
+      }
+
+      const removePayload = {
+        tokenA: currencyA.wrapped.address,
+        tokenB: currencyB.wrapped.address,
+        liquidity: BigNumber.from(parsedLiquidityAmount).toHexString(),
+        amountAMin: BigNumber.from(amountsMin.CURRENCY_A.toString()).toHexString(),
+        amountBMin: BigNumber.from(amountsMin.CURRENCY_B.toString()).toHexString(),
+        user: account,
+        deadline: deadline.toHexString(),
+      }
+
+      const signaturePayload = {
+        v: conveyorSignatureData.v,
+        r: conveyorSignatureData.r,
+        s: conveyorSignatureData.s,
+      }
+
+      const fnParams = [
+        'tuple(address tokenA,address tokenB,uint256 liquidity,uint256 amountAMin,uint256 amountBMin,address user,uint256 deadline)',
+        'tuple(uint8 v,bytes32 r,bytes32 s)',
+      ]
+      const fnData = [`function removeLiquidityWithPermit(${fnParams[0]}, ${fnParams[1]})`]
+      const fnDataIface = new Interface(fnData)
+
+      const nonce: BigNumber = await conveyorRouterContract.nonces(account)
+
+      const message = {
+        from: account,
+        feeToken: currencyA.wrapped.address,
+        maxTokenAmount: BigNumber.from(maxTokenAmount).toHexString(),
+        deadline: deadline.toHexString(),
+        nonce: nonce.toHexString(),
+        data: fnDataIface.functions.removeLiquidityWithPermit.encode([removePayload, signaturePayload]),
+        hashedPayload: keccak256(
+          defaultAbiCoder.encode(
+            [
+              'bytes',
+              'address',
+              'address',
+              'uint256',
+              'uint256',
+              'uint256',
+              'address',
+              'uint256',
+              'uint8',
+              'bytes32',
+              'bytes32',
+            ],
+            [
+              keccak256(
+                toUtf8Bytes(
+                  'removeLiquidityWithPermit(address tokenA,address tokenB,uint256 liquidity,uint256 amountAMin,uint256 amountBMin,address user,uint256 deadline,uint8 v,bytes32 r,bytes32 s)'
+                )
+              ),
+              ...Object.entries({ ...removePayload, ...signaturePayload }).map(([_, value]) => value),
+            ]
+          )
+        ),
+      }
+
+      console.log('message', message)
+
+      const EIP712Msg = {
+        types: {
+          EIP712Domain: EIP712_DOMAIN_TYPE,
+          Forwarder: FORWARDER_TYPE,
+          // RemoveLiquidity,
+        },
+        domain,
+        primaryType: 'Forwarder',
+        message,
+      }
+
+      const data = JSON.stringify(EIP712Msg)
+
       setAttemptingTxn(true)
 
-      const params = [
-        chainId,
-        EIP712Msg,
-        conveyorSignatureData.v.toString(),
-        conveyorSignatureData.r,
-        conveyorSignatureData.s,
-      ]
-      // console.log('params: ', params)
+      const signature = await library.send('eth_signTypedData_v4', [account, data])
+      const { v, r, s } = splitSignature(signature)
+
+      const params = [chainId, EIP712Msg, v.toString(), r, s]
 
       const jsonRPCRequest = {
         jsonrpc: '2.0',
-        method: '/v2/removeLiquidity',
+        method: '/v2/metaTx/removeLiquidity',
         id: 1,
         params,
       }
@@ -441,9 +511,7 @@ export default function Remove() {
       }
 
       const jsonRPCResponse = await fetch(CONVEYOR_RELAYER_URI[chainId]!, requestOptions)
-      // console.log('jsonRPCResponse: ', jsonRPCResponse)
       const { result: response } = await jsonRPCResponse.json()
-      // console.log('jsonRPCResponse result: ', response)
 
       setAttemptingTxn(false)
 
@@ -456,302 +524,20 @@ export default function Remove() {
           { hash: response.txnHash },
           {
             summary: `Remove ${parsedAmountA} ${currencyA?.symbol} and ${parsedAmountB} ${currencyB?.symbol}`,
-            // 'Add ' +
-            // parsedAmounts[Field.CURRENCY_A]?.toSignificant(3) +
-            // ' ' +
-            // currencies[Field.CURRENCY_A]?.symbol +
-            // ' and ' +
-            // parsedAmounts[Field.CURRENCY_B]?.toSignificant(3) +
-            // ' ' +
-            // currencies[Field.CURRENCY_B]?.symbol
           }
         )
 
         setTxHash(response.txnHash)
+        setConveyorSignatureData(null)
+        if (isExpertMode) {
+          setShowConfirm(true)
+        }
       } else {
         console.error(response.errorMessage)
         return
       }
     }
   }
-
-  // const isArgentWallet = useIsArgentWallet();
-
-  // async function onAttemptToApprove() {
-  //   if (!pairContract || !pair || !library || !deadline)
-  //     throw new Error("missing dependencies");
-  //   const liquidityAmount = parsedAmounts[Field.LIQUIDITY];
-  //   if (!liquidityAmount) throw new Error("missing liquidity amount");
-
-  //   if (isArgentWallet) {
-  //     return approveCallback();
-  //   }
-
-  //   if (chainId !== ChainId.HARMONY) {
-  //     // try to gather a signature for permission
-  //     const nonce = await pairContract.nonces(account);
-
-  //     const EIP712Domain = [
-  //       { name: "name", type: "string" },
-  //       { name: "version", type: "string" },
-  //       { name: "chainId", type: "uint256" },
-  //       { name: "verifyingContract", type: "address" },
-  //     ];
-  //     const domain = {
-  //       name: "SushiSwap LP Token",
-  //       version: "1",
-  //       chainId: chainId,
-  //       verifyingContract: pair.liquidityToken.address,
-  //     };
-  //     const Permit = [
-  //       { name: "owner", type: "address" },
-  //       { name: "spender", type: "address" },
-  //       { name: "value", type: "uint256" },
-  //       { name: "nonce", type: "uint256" },
-  //       { name: "deadline", type: "uint256" },
-  //     ];
-  //     const message = {
-  //       owner: account,
-  //       spender: getRouterAddress(chainId),
-  //       value: liquidityAmount.raw.toString(),
-  //       nonce: nonce.toHexString(),
-  //       deadline: deadline.toNumber(),
-  //     };
-  //     const data = JSON.stringify({
-  //       types: {
-  //         EIP712Domain,
-  //         Permit,
-  //       },
-  //       domain,
-  //       primaryType: "Permit",
-  //       message,
-  //     });
-
-  //     library
-  //       .send("eth_signTypedData_v4", [account, data])
-  //       .then(splitSignature)
-  //       .then((signature) => {
-  //         setSignatureData({
-  //           v: signature.v,
-  //           r: signature.r,
-  //           s: signature.s,
-  //           deadline: deadline.toNumber(),
-  //         });
-  //       })
-  //       .catch((error) => {
-  //         // for all errors other than 4001 (EIP-1193 user rejected request), fall back to manual approve
-  //         if (error?.code !== 4001) {
-  //           approveCallback();
-  //         }
-  //       });
-  //   } else {
-  //     return approveCallback();
-  //   }
-  // }
-
-  // // wrapped onUserInput to clear signatures
-  // const onUserInput = useCallback(
-  //   (field: Field, typedValue: string) => {
-  //     setSignatureData(null);
-  //     return _onUserInput(field, typedValue);
-  //   },
-  //   [_onUserInput]
-  // );
-
-  // const onLiquidityPercentInput = useCallback(
-  //   (typedValue: string): void =>
-  //     onUserInput(Field.LIQUIDITY_PERCENT, typedValue),
-  //   [onUserInput]
-  // );
-  // const onLiquidityInput = useCallback(
-  //   (typedValue: string): void => onUserInput(Field.LIQUIDITY, typedValue),
-  //   [onUserInput]
-  // );
-  // const onCurrencyAInput = useCallback(
-  //   (typedValue: string): void => onUserInput(Field.CURRENCY_A, typedValue),
-  //   [onUserInput]
-  // );
-  // const onCurrencyBInput = useCallback(
-  //   (typedValue: string): void => onUserInput(Field.CURRENCY_B, typedValue),
-  //   [onUserInput]
-  // );
-
-  // // tx sending
-  // const addTransaction = useTransactionAdder();
-  // async function onRemove() {
-  //   if (!chainId || !library || !account || !deadline)
-  //     throw new Error("missing dependencies");
-  //   const {
-  //     [Field.CURRENCY_A]: currencyAmountA,
-  //     [Field.CURRENCY_B]: currencyAmountB,
-  //   } = parsedAmounts;
-  //   if (!currencyAmountA || !currencyAmountB) {
-  //     throw new Error("missing currency amounts");
-  //   }
-  //   const router = getRouterContract(chainId, library, account);
-
-  //   const amountsMin = {
-  //     [Field.CURRENCY_A]: calculateSlippageAmount(
-  //       currencyAmountA,
-  //       allowedSlippage
-  //     )[0],
-  //     [Field.CURRENCY_B]: calculateSlippageAmount(
-  //       currencyAmountB,
-  //       allowedSlippage
-  //     )[0],
-  //   };
-
-  //   if (!currencyA || !currencyB) throw new Error("missing tokens");
-  //   const liquidityAmount = parsedAmounts[Field.LIQUIDITY];
-  //   if (!liquidityAmount) throw new Error("missing liquidity amount");
-
-  //   const currencyBIsETH = currencyB === Currency.getNativeCurrency(chainId);
-  //   const oneCurrencyIsETH =
-  //     currencyA === Currency.getNativeCurrency(chainId) || currencyBIsETH;
-
-  //   if (!tokenA || !tokenB) throw new Error("could not wrap");
-
-  //   let methodNames: string[];
-  //   let args: Array<string | string[] | number | boolean>;
-  //   // we have approval, use normal remove liquidity
-  //   if (approval === ApprovalState.APPROVED) {
-  //     // removeLiquidityETH
-  //     if (oneCurrencyIsETH && ![ChainId.CELO].includes(chainId)) {
-  //       methodNames = [
-  //         "removeLiquidityETH",
-  //         "removeLiquidityETHSupportingFeeOnTransferTokens",
-  //       ];
-  //       args = [
-  //         currencyBIsETH ? tokenA.address : tokenB.address,
-  //         liquidityAmount.raw.toString(),
-  //         amountsMin[
-  //           currencyBIsETH ? Field.CURRENCY_A : Field.CURRENCY_B
-  //         ].toString(),
-  //         amountsMin[
-  //           currencyBIsETH ? Field.CURRENCY_B : Field.CURRENCY_A
-  //         ].toString(),
-  //         account,
-  //         deadline.toHexString(),
-  //       ];
-  //     }
-  //     // removeLiquidity
-  //     else {
-  //       methodNames = ["removeLiquidity"];
-  //       args = [
-  //         tokenA.address,
-  //         tokenB.address,
-  //         liquidityAmount.raw.toString(),
-  //         amountsMin[Field.CURRENCY_A].toString(),
-  //         amountsMin[Field.CURRENCY_B].toString(),
-  //         account,
-  //         deadline.toHexString(),
-  //       ];
-  //     }
-  //   }
-  //   // we have a signataure, use permit versions of remove liquidity
-  //   else if (signatureData !== null) {
-  //     // removeLiquidityETHWithPermit
-  //     if (oneCurrencyIsETH && ![ChainId.CELO].includes(chainId)) {
-  //       methodNames = [
-  //         "removeLiquidityETHWithPermit",
-  //         "removeLiquidityETHWithPermitSupportingFeeOnTransferTokens",
-  //       ];
-  //       args = [
-  //         currencyBIsETH ? tokenA.address : tokenB.address,
-  //         liquidityAmount.raw.toString(),
-  //         amountsMin[
-  //           currencyBIsETH ? Field.CURRENCY_A : Field.CURRENCY_B
-  //         ].toString(),
-  //         amountsMin[
-  //           currencyBIsETH ? Field.CURRENCY_B : Field.CURRENCY_A
-  //         ].toString(),
-  //         account,
-  //         signatureData.deadline,
-  //         false,
-  //         signatureData.v,
-  //         signatureData.r,
-  //         signatureData.s,
-  //       ];
-  //     }
-  //     // removeLiquidityETHWithPermit
-  //     else {
-  //       methodNames = ["removeLiquidityWithPermit"];
-  //       args = [
-  //         tokenA.address,
-  //         tokenB.address,
-  //         liquidityAmount.raw.toString(),
-  //         amountsMin[Field.CURRENCY_A].toString(),
-  //         amountsMin[Field.CURRENCY_B].toString(),
-  //         account,
-  //         signatureData.deadline,
-  //         false,
-  //         signatureData.v,
-  //         signatureData.r,
-  //         signatureData.s,
-  //       ];
-  //     }
-  //   } else {
-  //     throw new Error(
-  //       "Attempting to confirm without approval or a signature. Please contact support."
-  //     );
-  //   }
-
-  //   const safeGasEstimates: (BigNumber | undefined)[] = await Promise.all(
-  //     methodNames.map((methodName) =>
-  //       router.estimateGas[methodName](...args)
-  //         .then(calculateGasMargin)
-  //         .catch((error) => {
-  //           console.error(`estimateGas failed`, methodName, args, error);
-  //           return undefined;
-  //         })
-  //     )
-  //   );
-
-  //   const indexOfSuccessfulEstimation = safeGasEstimates.findIndex(
-  //     (safeGasEstimate) => BigNumber.isBigNumber(safeGasEstimate)
-  //   );
-
-  //   // all estimations failed...
-  //   if (indexOfSuccessfulEstimation === -1) {
-  //     console.error("This transaction would fail. Please contact support.");
-  //   } else {
-  //     const methodName = methodNames[indexOfSuccessfulEstimation];
-  //     const safeGasEstimate = safeGasEstimates[indexOfSuccessfulEstimation];
-
-  //     setAttemptingTxn(true);
-  //     await router[methodName](...args, {
-  //       gasLimit: safeGasEstimate,
-  //     })
-  //       .then((response: TransactionResponse) => {
-  //         setAttemptingTxn(false);
-
-  //         addTransaction(response, {
-  //           summary:
-  //             "Remove " +
-  //             parsedAmounts[Field.CURRENCY_A]?.toSignificant(3) +
-  //             " " +
-  //             currencyA?.symbol +
-  //             " and " +
-  //             parsedAmounts[Field.CURRENCY_B]?.toSignificant(3) +
-  //             " " +
-  //             currencyB?.symbol,
-  //         });
-
-  //         setTxHash(response.hash);
-
-  //         ReactGA.event({
-  //           category: "Liquidity",
-  //           action: "Remove",
-  //           label: [currencyA?.symbol, currencyB?.symbol].join("/"),
-  //         });
-  //       })
-  //       .catch((error: Error) => {
-  //         setAttemptingTxn(false);
-  //         // we only care if the error is something _other_ than the user rejected the tx
-  //         console.error(error);
-  //       });
-  //   }
-  // }
 
   function modalHeader() {
     return (
@@ -853,8 +639,12 @@ export default function Remove() {
   const liquidityPercentChangeCallback = useCallback(
     (value: string) => {
       onUserInput(Field.LIQUIDITY_PERCENT, value)
+
+      if (conveyorSignatureData !== null) {
+        setConveyorSignatureData(null)
+      }
     },
-    [onUserInput]
+    [conveyorSignatureData, onUserInput]
   )
 
   const oneCurrencyIsETH = currencyA?.isNative || currencyB?.isNative
@@ -1067,7 +857,7 @@ export default function Remove() {
                     ) : (
                       <ButtonError
                         onClick={() => {
-                          setShowConfirm(true)
+                          isExpertMode ? onRemove() : setShowConfirm(true)
                         }}
                         disabled={!isValid || (conveyorSignatureData === null && approval !== ApprovalState.APPROVED)}
                         error={!isValid && !!parsedAmounts[Field.CURRENCY_A] && !!parsedAmounts[Field.CURRENCY_B]}

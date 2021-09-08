@@ -1,4 +1,4 @@
-import { ChainId, CurrencyAmount, JSBI, NATIVE, Pair } from '@sushiswap/sdk'
+import { ChainId, CurrencyAmount, JSBI, NATIVE, Pair, WNATIVE_ADDRESS } from '@sushiswap/sdk'
 import React, { useMemo } from 'react'
 import { classNames, currencyId } from '../../../functions'
 import { toV2LiquidityToken, useTrackedTokenPairs, useUserConveyorUseRelay } from '../../../state/user/hooks'
@@ -150,7 +150,9 @@ export default function Pool() {
               id="add-pool-button"
               color="gradient"
               className="grid items-center justify-center grid-flow-col gap-2 whitespace-nowrap"
-              onClick={() => router.push(`/add/${currencyId(NATIVE[chainId])}`)}
+              onClick={() =>
+                router.push(`/add/${!useConveyor ? currencyId(NATIVE[chainId]) : WNATIVE_ADDRESS[chainId]}`)
+              }
             >
               {i18n._(t`Add`)}
             </Button>

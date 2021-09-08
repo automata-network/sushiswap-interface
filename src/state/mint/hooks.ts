@@ -11,7 +11,7 @@ import { useActiveWeb3React } from '../../hooks/useActiveWeb3React'
 import { useCurrencyBalances } from '../wallet/hooks'
 import { useLingui } from '@lingui/react'
 import { useTotalSupply } from '../../hooks/useTotalSupply'
-import { useUserConveyorGasEstimation, useUserConveyorUseRelay } from '../user/hooks'
+import { useUserConveyorGasEstimation, useUserConveyorUseRelay, useUserLiquidityGasLimit } from '../user/hooks'
 import { ADD_LIQUIDITY_GAS_LIMIT } from '../../constants'
 import { calculateConveyorFeeOnToken } from '../../functions/conveyorFee'
 
@@ -217,6 +217,7 @@ export function useDerivedMintInfo(
 
   const [userConveyorUseRelay] = useUserConveyorUseRelay()
   const [, setUserConveyorGasEstimation] = useUserConveyorGasEstimation()
+  const [userLiquidityGasLimit] = useUserLiquidityGasLimit()
   useEffect(() => {
     ;(() => {
       if (!userConveyorUseRelay) return
@@ -225,18 +226,17 @@ export function useDerivedMintInfo(
         if (typeof chainId === 'undefined') return
         if (!currencies.CURRENCY_A || typeof value === 'undefined') return
 
-        const gasLimit = ADD_LIQUIDITY_GAS_LIMIT
         calculateConveyorFeeOnToken(
           chainId,
           currencies[Field.CURRENCY_A].wrapped.address,
           currencies[Field.CURRENCY_A].decimals,
-          value.mul(gasLimit)
+          value.mul(userLiquidityGasLimit)
         ).then((fee) => {
           setUserConveyorGasEstimation(fee.toString())
         })
       })
     })()
-  }, [userConveyorUseRelay, chainId, currencies, library, setUserConveyorGasEstimation])
+  }, [userConveyorUseRelay, chainId, currencies, library, userLiquidityGasLimit, setUserConveyorGasEstimation])
 
   return {
     dependentField,

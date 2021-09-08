@@ -1,5 +1,5 @@
-import { ChainId, Percent } from '@sushiswap/sdk'
-import React, { useRef, useState } from 'react'
+import { ChainId, Percent, WNATIVE_ADDRESS } from '@sushiswap/sdk'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   useExpertModeManager,
   useUserArcherUseRelay,
@@ -22,6 +22,10 @@ import { t } from '@lingui/macro'
 import { useActiveWeb3React } from '../../hooks'
 import { useLingui } from '@lingui/react'
 import { useOnClickOutside } from '../../hooks/useOnClickOutside'
+import { useSwapState, useSwapActionHandlers } from '../../state/swap/hooks'
+import { useRouter } from 'next/router'
+import { Field } from '../../state/swap/actions'
+import { useCurrency } from '../../hooks/Tokens'
 
 export default function SettingsTab({ placeholderSlippage }: { placeholderSlippage?: Percent }) {
   const { i18n } = useLingui()
@@ -45,6 +49,62 @@ export default function SettingsTab({ placeholderSlippage }: { placeholderSlippa
   const [userUseArcher, setUserUseArcher] = useUserArcherUseRelay()
 
   const [userUseConveyor, setUserUseConveyor] = useUserConveyorUseRelay()
+  const conveyorSupportedChain: readonly number[] = [
+    ChainId.MAINNET,
+    // ChainId.BSC,
+    ChainId.MATIC,
+  ]
+
+  const wrappedCurrency = useCurrency(WNATIVE_ADDRESS[chainId])
+  const swapState = useSwapState()
+  const { onCurrencySelection } = useSwapActionHandlers()
+
+  const nextRouter = useRouter()
+
+  const onConveyorToggle = useCallback(() => {
+    const isPreviouslyUseConveyor = userUseConveyor
+    setUserUseConveyor(isPreviouslyUseConveyor ? false : true)
+
+    if (isPreviouslyUseConveyor) return
+
+    let ethField: Field | undefined
+
+    let page = nextRouter.asPath.split('/').filter((item) => !!item)[0]
+    if (page.indexOf('?') > -1) {
+      page = page.substring(0, page.indexOf('?'))
+    }
+
+    if (page === 'swap') {
+      ethField =
+        swapState[Field.INPUT].currencyId === 'ETH'
+          ? Field.INPUT
+          : swapState[Field.OUTPUT].currencyId === 'ETH'
+          ? Field.OUTPUT
+          : undefined
+
+      if (typeof ethField !== 'undefined') {
+        onCurrencySelection(ethField, wrappedCurrency)
+      }
+    } else if (page === 'add') {
+      const { tokens } = nextRouter.query
+      if (typeof tokens === 'undefined' || !tokens.length) return
+
+      ethField = tokens[0] === 'ETH' ? Field.INPUT : tokens[1] === 'ETH' ? Field.OUTPUT : undefined
+      if (typeof ethField === 'undefined') return
+
+      if (ethField === Field.INPUT) {
+        nextRouter.push(`/add/${wrappedCurrency.wrapped.address}/${tokens[1]}`)
+      } else if (ethField === Field.OUTPUT) {
+        nextRouter.push(`/add/${tokens[0]}/${wrappedCurrency.wrapped.address}`)
+      }
+    }
+  }, [nextRouter, userUseConveyor, swapState, wrappedCurrency, setUserUseConveyor, onCurrencySelection])
+
+  useEffect(() => {
+    if (!conveyorSupportedChain.includes(chainId) && userUseConveyor) {
+      setUserUseConveyor(false)
+    }
+  }, [chainId, userUseConveyor, setUserUseConveyor])
 
   return (
     <div className="relative flex" ref={node}>
@@ -125,7 +185,7 @@ export default function SettingsTab({ placeholderSlippage }: { placeholderSlippa
                 />
               </div>
             )} */}
-            {chainId == ChainId.BSC && (
+            {conveyorSupportedChain.includes(chainId) && (
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <Typography variant="sm" className="text-primary">
@@ -137,11 +197,7 @@ export default function SettingsTab({ placeholderSlippage }: { placeholderSlippa
                     )}
                   />
                 </div>
-                <Toggle
-                  id="toggle-use-conveyor"
-                  isActive={userUseConveyor}
-                  toggle={() => setUserUseConveyor(!userUseConveyor)}
-                />
+                <Toggle id="toggle-use-conveyor" isActive={userUseConveyor} toggle={onConveyorToggle} />
               </div>
             )}
           </div>

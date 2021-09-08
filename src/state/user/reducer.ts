@@ -1,5 +1,10 @@
 import { DEFAULT_ARCHER_ETH_TIP, DEFAULT_ARCHER_GAS_ESTIMATE, DEFAULT_ARCHER_GAS_PRICES } from '../../config/archer'
-import { DEFAULT_DEADLINE_FROM_NOW, INITIAL_ALLOWED_SLIPPAGE } from '../../constants'
+import {
+  DEFAULT_DEADLINE_FROM_NOW,
+  INITIAL_ALLOWED_SLIPPAGE,
+  SWAP_GAS_LIMIT,
+  ADD_LIQUIDITY_GAS_LIMIT,
+} from '../../constants'
 import {
   SerializedPair,
   SerializedToken,
@@ -21,6 +26,9 @@ import {
   updateUserSlippageTolerance,
   updateUserConveyorUseRelay,
   updateUserConveyorGasEstimation,
+  // updateUserMaxTokenAmount,
+  updateUserSwapGasLimit,
+  updateUserLiquidityGasLimit,
 } from './actions'
 
 import { createReducer } from '@reduxjs/toolkit'
@@ -69,6 +77,10 @@ export interface UserState {
 
   userConveyorUseRelay: boolean
   userConveyorGasEstimation: string
+
+  // userMaxTokenAmount: number
+  userSwapGasLimit: number
+  userLiquidityGasLimit: number
 }
 
 function pairKey(token0Address: string, token1Address: string) {
@@ -93,6 +105,9 @@ export const initialState: UserState = {
   userArcherTipManualOverride: false,
   userConveyorUseRelay: false,
   userConveyorGasEstimation: '',
+  // userMaxTokenAmount: 12000000,
+  userSwapGasLimit: SWAP_GAS_LIMIT,
+  userLiquidityGasLimit: ADD_LIQUIDITY_GAS_LIMIT,
 }
 
 export default createReducer(initialState, (builder) =>
@@ -108,6 +123,24 @@ export default createReducer(initialState, (builder) =>
       // noinspection SuspiciousTypeOfGuard
       if (typeof state.userDeadline !== 'number') {
         state.userDeadline = DEFAULT_DEADLINE_FROM_NOW
+      }
+
+      // max token amount isnt being tracked in local storage, reset to default
+      // noinspection SuspiciousTypeOfGuard
+      // if (typeof state.userMaxTokenAmount !== 'number') {
+      //   state.userMaxTokenAmount = 12000000
+      // }
+
+      // swap gas limit isnt being tracked in local storage, reset to default
+      // noinspection SuspiciousTypeOfGuard
+      if (typeof state.userSwapGasLimit !== 'number') {
+        state.userSwapGasLimit = SWAP_GAS_LIMIT
+      }
+
+      // liquidity gas limit isnt being tracked in local storage, reset to default
+      // noinspection SuspiciousTypeOfGuard
+      if (typeof state.userLiquidityGasLimit !== 'number') {
+        state.userLiquidityGasLimit = ADD_LIQUIDITY_GAS_LIMIT
       }
 
       state.lastUpdateVersionTimestamp = currentTimestamp()
@@ -188,5 +221,16 @@ export default createReducer(initialState, (builder) =>
     })
     .addCase(updateUserConveyorGasEstimation, (state, action) => {
       state.userConveyorGasEstimation = action.payload.userConveyorGasEstimation
+    })
+    // .addCase(updateUserMaxTokenAmount, (state, action) => {
+    //   state.userMaxTokenAmount = action.payload.userMaxTokenAmount
+    // })
+    .addCase(updateUserSwapGasLimit, (state, action) => {
+      state.userSwapGasLimit = action.payload.userSwapGasLimit
+      state.timestamp = currentTimestamp()
+    })
+    .addCase(updateUserLiquidityGasLimit, (state, action) => {
+      state.userLiquidityGasLimit = action.payload.userLiquidityGasLimit
+      state.timestamp = currentTimestamp()
     })
 )

@@ -5,15 +5,35 @@
         "internalType": "address",
         "name": "_factory",
         "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "_gasFeeHolder",
-        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
     "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "success",
+        "type": "bool"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "error",
+        "type": "string"
+      }
+    ],
+    "name": "MetaStatus",
+    "type": "event"
   },
   {
     "anonymous": false,
@@ -55,19 +75,6 @@
   },
   {
     "inputs": [],
-    "name": "ADDLIQUIDITY_TYPEHASH",
-    "outputs": [
-      {
-        "internalType": "bytes32",
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "DOMAIN_TYPEHASH",
     "outputs": [
       {
@@ -81,7 +88,7 @@
   },
   {
     "inputs": [],
-    "name": "SWAP_TYPEHASH",
+    "name": "FORWARDER_TYPEHASH",
     "outputs": [
       {
         "internalType": "bytes32",
@@ -135,42 +142,10 @@
             "internalType": "uint256",
             "name": "deadline",
             "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "feeAmount",
-            "type": "uint256"
-          },
-          {
-            "internalType": "address",
-            "name": "feeToken",
-            "type": "address"
           }
         ],
         "internalType": "struct ConveyorV2Types.ADDLIQUIDITY_TYPE",
         "name": "al",
-        "type": "tuple"
-      },
-      {
-        "components": [
-          {
-            "internalType": "uint8",
-            "name": "v",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "r",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "s",
-            "type": "bytes32"
-          }
-        ],
-        "internalType": "struct ConveyorV2Types.SIGNATURE_TYPE",
-        "name": "sig",
         "type": "tuple"
       }
     ],
@@ -196,6 +171,93 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "from",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "feeToken",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "maxTokenAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "deadline",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "nonce",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes",
+            "name": "data",
+            "type": "bytes"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "hashedPayload",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct ERC20Forwarder.MetaTransaction",
+        "name": "metatx",
+        "type": "tuple"
+      },
+      {
+        "internalType": "string",
+        "name": "domainName",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenPricePerNativeToken",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "feeOffset",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint8",
+            "name": "v",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "r",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "s",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct ERC20Forwarder.SIGNATURE_TYPE",
+        "name": "sig",
+        "type": "tuple"
+      }
+    ],
+    "name": "executeMetaTx",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "factory",
     "outputs": [
@@ -210,7 +272,7 @@
   },
   {
     "inputs": [],
-    "name": "gasFeeHolder",
+    "name": "feeHolder",
     "outputs": [
       {
         "internalType": "address",
@@ -328,6 +390,26 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "metaDisabled",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "metaSwitch",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -389,26 +471,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "relayerDisabled",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "relayerSwitch",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "address",
@@ -465,16 +527,6 @@
             "internalType": "uint256",
             "name": "deadline",
             "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "feeAmount",
-            "type": "uint256"
-          },
-          {
-            "internalType": "address",
-            "name": "feeToken",
-            "type": "address"
           }
         ],
         "internalType": "struct ConveyorV2Types.REMOVELIQUIDITY_TYPE",
@@ -530,12 +582,25 @@
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "_newConstantFee",
+        "type": "uint256"
+      }
+    ],
+    "name": "setConstantFee",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "address",
-        "name": "_gasFeeHolder",
+        "name": "_feeHolder",
         "type": "address"
       }
     ],
-    "name": "setGasFeeHolder",
+    "name": "setFeeHolder",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -549,11 +614,24 @@
       },
       {
         "internalType": "bool",
-        "name": "_assignment",
+        "name": "_trusted",
         "type": "bool"
       }
     ],
     "name": "setRelayer",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_newTransferFee",
+        "type": "uint256"
+      }
+    ],
+    "name": "setTransferFee",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -586,42 +664,10 @@
             "internalType": "uint256",
             "name": "deadline",
             "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "feeAmount",
-            "type": "uint256"
-          },
-          {
-            "internalType": "address",
-            "name": "feeToken",
-            "type": "address"
           }
         ],
         "internalType": "struct ConveyorV2Types.SWAP_TYPE",
         "name": "swap",
-        "type": "tuple"
-      },
-      {
-        "components": [
-          {
-            "internalType": "uint8",
-            "name": "v",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "r",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "s",
-            "type": "bytes32"
-          }
-        ],
-        "internalType": "struct ConveyorV2Types.SIGNATURE_TYPE",
-        "name": "sig",
         "type": "tuple"
       }
     ],
@@ -664,42 +710,10 @@
             "internalType": "uint256",
             "name": "deadline",
             "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "feeAmount",
-            "type": "uint256"
-          },
-          {
-            "internalType": "address",
-            "name": "feeToken",
-            "type": "address"
           }
         ],
         "internalType": "struct ConveyorV2Types.SWAP_TYPE",
         "name": "swap",
-        "type": "tuple"
-      },
-      {
-        "components": [
-          {
-            "internalType": "uint8",
-            "name": "v",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "r",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "s",
-            "type": "bytes32"
-          }
-        ],
-        "internalType": "struct ConveyorV2Types.SIGNATURE_TYPE",
-        "name": "sig",
         "type": "tuple"
       }
     ],
