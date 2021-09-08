@@ -71,7 +71,7 @@ export const EIP_1559_ACTIVATION_BLOCK: { [chainId in ChainId]?: number } = {
 export const SWAP_GAS_LIMIT = 410000
 export const HOP_ADDITIONAL_GAS = 140000
 export const ADD_LIQUIDITY_GAS_LIMIT = 530000
-export const CREATE_PAIR_GAS_LIMIT = 4100000
+export const CREATE_PAIR_GAS_LIMIT = 9225000 // v1: 4100000
 export const PRICE_API_PREFIX: { [chainId in ChainId]?: string } = {
   [ChainId.MAINNET]: 'https://api.coingecko.com/api/v3/simple/token_price/ethereum?',
   [ChainId.BSC]: 'https://api.coingecko.com/api/v3/simple/token_price/binance-smart-chain?',

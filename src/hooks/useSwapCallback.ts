@@ -694,13 +694,6 @@ export function useSwapCallback(
       }
       console.log('message', message)
 
-      // const gasMethod = await(await conveyorRouter.estimateGas.swapExactTokensForTokens()).toHexString
-      // console.log('gasMethod', gasMethod)
-      // const latestBlock = await library.getBlock('0x0d301c9273e5d288da0d3f3389715478b687245daa7193fe0ad2e4339986fc50')
-      // console.log('latestBlock', latestBlock)
-      // const blockGas = latestBlock.gasLimit
-      // console.log('blockGas', blockGas)
-
       const EIP712Msg = {
         types: {
           EIP712Domain,
@@ -733,7 +726,6 @@ export function useSwapCallback(
 
       const response = await fetch(CONVEYOR_RELAYER_URI[chainId]!, requestOptions)
       const { result } = await response.json()
-      console.log('result', result)
 
       if (result.success === true) {
         const [inputTokenSymbol, outputTokenSymbol] = [

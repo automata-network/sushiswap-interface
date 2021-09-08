@@ -58,6 +58,7 @@ import { CONVEYOR_RELAYER_URI } from '../../../config/conveyor'
 import ConveyorGasFee from '../../../features/trade/ConveyorGasFee'
 import { BigNumber as JSBigNumber } from 'bignumber.js'
 import { utils } from 'ethers'
+import { toRawAmount } from '../../../functions/conveyor/helpers'
 
 const { keccak256, defaultAbiCoder, toUtf8Bytes, Interface } = utils
 
@@ -181,8 +182,6 @@ export default function Add() {
       [Field.CURRENCY_B]: calculateSlippageAmount(parsedAmountB, noLiquidity ? ZERO_PERCENT : allowedSlippage)[0],
     }
 
-    // console.log('userConveyorUseRelay: ', userConveyorUseRelay)
-
     if (!userConveyorUseRelay) {
       // Sushiswap's default add
       let estimate,
@@ -260,14 +259,8 @@ export default function Add() {
         return
       }
 
-      const amountADesired = parsedAmountA.toFixed(parsedAmountA.currency.decimals, {
-        decimalSeparator: '',
-        groupSeparator: '',
-      })
-      const amountBDesired = parsedAmountB.toFixed(parsedAmountB.currency.decimals, {
-        decimalSeparator: '',
-        groupSeparator: '',
-      })
+      const amountADesired = toRawAmount(parsedAmountA)
+      const amountBDesired = toRawAmount(parsedAmountB)
       const amountAMin = amountsMin[Field.CURRENCY_A].toString()
       const amountBMin = amountsMin[Field.CURRENCY_B].toString()
 
@@ -404,13 +397,10 @@ export default function Add() {
 
           const jsonrpcResponse = await fetch(CONVEYOR_RELAYER_URI[chainId]!, requestOptions)
           const { result: response } = await jsonrpcResponse.json()
-          console.log('response', response)
 
           setAttemptingTxn(false)
 
           if (response.success === true) {
-            console.log('response', response)
-
             addTransaction(
               { hash: response.txnHash },
               {
