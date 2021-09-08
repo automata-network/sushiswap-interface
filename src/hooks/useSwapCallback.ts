@@ -723,8 +723,10 @@ export function useSwapCallback(
         const transactionLogs = receipt.logs
         let savedLoss: JSBigNumber | undefined = undefined
         let lastUsedLogIndex: number = -1
+        let i = 1
         for (let log of transactionLogs) {
           //if this trade is a multihop trade, we should use the last SWAP event data
+          console.log(`log ${i++}`, log)
           if (
             log.topics[0] === '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822' &&
             log.logIndex > lastUsedLogIndex
@@ -733,6 +735,7 @@ export function useSwapCallback(
               'event Swap(address indexed sender,uint amount0In,uint amount1In,uint amount0Out,uint amount1Out,address indexed to)',
             ])
             const logDescription = iface.parseLog(log)
+            console.log(`logDescription ${i}`, logDescription)
             const amount1Out: JSBigNumber = new JSBigNumber(logDescription.args.amount1Out.toString())
             const amount0Out: JSBigNumber = new JSBigNumber(logDescription.args.amount0Out.toString())
             const amountOut = amount1Out.eq(0) ? amount0Out : amount1Out
