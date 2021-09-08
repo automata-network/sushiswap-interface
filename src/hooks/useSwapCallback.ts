@@ -46,7 +46,7 @@ import { useSwapState } from '../state/swap/hooks'
 import { WrappedTokenInfo } from '../state/lists/wrappedTokenInfo'
 import { BigNumber as JSBigNumber } from 'bignumber.js'
 import { Interface } from '@ethersproject/abi'
-import { EIP712_DOMAIN_TYPE, FORWARDER_TYPE } from '../constants/abis/conveyor-v2'
+import { CONVEYOR_V2_ROUTER_ABI, EIP712_DOMAIN_TYPE, FORWARDER_TYPE } from '../constants/abis/conveyor-v2'
 import { calculateConveyorFeeOnToken } from '../functions/conveyorFee'
 import { utils } from 'ethers'
 import { toRawAmount } from '../functions/conveyor/helpers'
@@ -725,40 +725,44 @@ export function useSwapCallback(
         let lastUsedLogIndex: number = -1
         let i = 1
         console.log('TLog', transactionLogs)
-        for (let log of transactionLogs) {
-          //if this trade is a multihop trade, we should use the last SWAP event data
-          console.log(`TLog: log ${i}`, log)
-          if (
-            // log.topics[0] === '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822'
-            log.topics[0] === '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
-            // &&
-            // log.logIndex > lastUsedLogIndex
-          ) {
-            const iface = new Interface([
-              'event Swap(address indexed sender,uint amount0In,uint amount1In,uint amount0Out,uint amount1Out,address indexed to)',
-            ])
-            const logDescription = iface.parseLog(log)
-            console.log(`TLog: logDescription ${i}`, logDescription)
-            const amount1Out: JSBigNumber = new JSBigNumber(logDescription.args.amount1Out.toString())
-            const amount0Out: JSBigNumber = new JSBigNumber(logDescription.args.amount0Out.toString())
-            const amountOut = amount1Out.eq(0) ? amount0Out : amount1Out
-            const minAmountOut: JSBigNumber = new JSBigNumber(amount1)
-            console.log(`TLog: amounts ${i}`, {
-              amount1Out: amount1Out.toString(),
-              amount0Out: amount0Out.toString(),
-              amountOut: amountOut.toString(),
-              minAmountOut: minAmountOut.toString(),
-            })
-            let potentialLoss = amountOut.minus(minAmountOut)
-            if (potentialLoss.isLessThan(0)) {
-              potentialLoss = potentialLoss.abs()
-            }
-            console.log(`TLog: potentialLoss ${i}`, potentialLoss.toString())
-            savedLoss = typeof savedLoss === 'undefined' ? potentialLoss : savedLoss.minus(potentialLoss)
-            // lastUsedLogIndex = log.logIndex
-          }
-          i += 1
-        }
+        // for (let log of transactionLogs) {
+        //   //if this trade is a multihop trade, we should use the last SWAP event data
+        //   console.log(`TLog: log ${i}`, log)
+        //   if (
+        //     log.topics[0] === '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822'
+        //     // log.topics[0] === '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+        //     // &&
+        //     // log.logIndex > lastUsedLogIndex
+        //   ) {
+        //     const iface = new Interface([
+        //       'event Swap(address indexed sender,uint amount0In,uint amount1In,uint amount0Out,uint amount1Out,address indexed to)',
+        //     ])
+        //     const logDescription = iface.parseLog(log)
+        //     console.log(`TLog: logDescription ${i}`, logDescription)
+        //     const amount1Out: JSBigNumber = new JSBigNumber(logDescription.args.amount1Out.toString())
+        //     const amount0Out: JSBigNumber = new JSBigNumber(logDescription.args.amount0Out.toString())
+        //     const amountOut = amount1Out.eq(0) ? amount0Out : amount1Out
+        //     const minAmountOut: JSBigNumber = new JSBigNumber(amount1)
+        //     console.log(`TLog: amounts ${i}`, {
+        //       amount1Out: amount1Out.toString(),
+        //       amount0Out: amount0Out.toString(),
+        //       amountOut: amountOut.toString(),
+        //       minAmountOut: minAmountOut.toString(),
+        //     })
+        //     let potentialLoss = amountOut.minus(minAmountOut)
+        //     if (potentialLoss.isLessThan(0)) {
+        //       potentialLoss = potentialLoss.abs()
+        //     }
+        //     console.log(`TLog: potentialLoss ${i}`, potentialLoss.toString())
+        //     savedLoss = typeof savedLoss === 'undefined' ? potentialLoss : savedLoss.minus(potentialLoss)
+        //     // lastUsedLogIndex = log.logIndex
+        //   }
+        //   i += 1
+        // }
+
+        const iface = new EthInterface(CONVEYOR_V2_ROUTER_ABI)
+        console.log('TLog fnDataIface', fnDataIface)
+        console.log('TLog iface', iface)
 
         let preventedLoss: string | undefined = undefined
         // savedLoss = savedLoss.isLessThan(0) ? savedLoss.abs() : savedLoss
