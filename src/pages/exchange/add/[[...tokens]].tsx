@@ -51,7 +51,7 @@ import { useConveyorRouterContract, useRouterContract } from '../../../hooks'
 import { useTransactionAdder } from '../../../state/transactions/hooks'
 import useTransactionDeadline from '../../../hooks/useTransactionDeadline'
 import { useWalletModalToggle } from '../../../state/application/hooks'
-import { CONVEYOR_V2_ROUTER_ADDRESS } from '../../../constants/abis/conveyor-v2'
+import { EIP712_DOMAIN_TYPE, FORWARDER_TYPE } from '../../../constants/abis/conveyor-v2'
 import { calculateConveyorFeeOnToken } from '../../../functions/conveyorFee'
 import { splitSignature } from '@ethersproject/bytes'
 import { CONVEYOR_RELAYER_URI } from '../../../config/conveyor'
@@ -153,11 +153,11 @@ export default function Add() {
   // check whether the user has approved the router on the tokens
   const [approvalA, approveACallback] = useApproveCallback(
     parsedAmounts[Field.CURRENCY_A],
-    !userConveyorUseRelay ? routerContract?.address : CONVEYOR_V2_ROUTER_ADDRESS[chainId]
+    !userConveyorUseRelay ? routerContract?.address : conveyorRouterContract.address
   )
   const [approvalB, approveBCallback] = useApproveCallback(
     parsedAmounts[Field.CURRENCY_B],
-    !userConveyorUseRelay ? routerContract?.address : CONVEYOR_V2_ROUTER_ADDRESS[chainId]
+    !userConveyorUseRelay ? routerContract?.address : conveyorRouterContract.address
   )
 
   const addTransaction = useTransactionAdder()
@@ -286,39 +286,11 @@ export default function Add() {
         maxTokenAmount: maxTokenAmount,
       })
 
-      const EIP712Domain = [
-        { name: 'name', type: 'string' },
-        { name: 'version', type: 'string' },
-        { name: 'chainId', type: 'uint256' },
-        { name: 'verifyingContract', type: 'address' },
-      ]
-
-      const Forwarder = [
-        { name: 'from', type: 'address' },
-        { name: 'feeToken', type: 'address' },
-        { name: 'maxTokenAmount', type: 'uint256' },
-        { name: 'deadline', type: 'uint256' },
-        { name: 'nonce', type: 'uint256' },
-        { name: 'data', type: 'bytes' },
-        { name: 'hashedPayload', type: 'bytes32' },
-      ]
-
-      // const AddLiquidity = [
-      //   { name: 'tokenA', type: 'address' },
-      //   { name: 'tokenB', type: 'address' },
-      //   { name: 'amountADesired', type: 'uint256' },
-      //   { name: 'amountBDesired', type: 'uint256' },
-      //   { name: 'amountAMin', type: 'uint256' },
-      //   { name: 'amountBMin', type: 'uint256' },
-      //   { name: 'user', type: 'address' },
-      //   { name: 'deadline', type: 'uint256' },
-      // ]
-
       const domain = {
         name: 'ConveyorV2',
         version: '1',
         chainId: BigNumber.from(chainId).toHexString(),
-        verifyingContract: CONVEYOR_V2_ROUTER_ADDRESS[chainId],
+        verifyingContract: conveyorRouterContract.address,
       }
 
       const payload = {
@@ -362,8 +334,8 @@ export default function Add() {
 
       const EIP712Msg = {
         types: {
-          EIP712Domain,
-          Forwarder,
+          EIP712Domain: EIP712_DOMAIN_TYPE,
+          Forwarder: FORWARDER_TYPE,
           // AddLiquidity,
         },
         domain,

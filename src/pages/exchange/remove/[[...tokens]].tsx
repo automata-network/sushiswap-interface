@@ -59,6 +59,7 @@ import { CONVEYOR_RELAYER_URI } from '../../../config/conveyor'
 import { utils } from 'ethers'
 import { BigNumber as JSBigNumber } from 'bignumber.js'
 import { toRawAmount } from '../../../functions/conveyor/helpers'
+import { EIP712_DOMAIN_TYPE, FORWARDER_TYPE, PERMIT_TYPE } from '../../../constants/abis/conveyor-v2'
 
 const { keccak256, toUtf8Bytes, defaultAbiCoder, Interface } = utils
 
@@ -172,21 +173,6 @@ export default function Remove() {
       // try to gather a signature for permission
       const nonce = await pairContract.nonces(account)
 
-      const EIP712Domain = [
-        { name: 'name', type: 'string' },
-        { name: 'version', type: 'string' },
-        { name: 'chainId', type: 'uint256' },
-        { name: 'verifyingContract', type: 'address' },
-      ]
-
-      const Permit = [
-        { name: 'owner', type: 'address' },
-        { name: 'spender', type: 'address' },
-        { name: 'value', type: 'uint256' },
-        { name: 'nonce', type: 'uint256' },
-        { name: 'deadline', type: 'uint256' },
-      ]
-
       const domain = {
         name: 'Conveyor V2',
         version: '1',
@@ -204,8 +190,8 @@ export default function Remove() {
 
       const _EIP712Msg = {
         types: {
-          EIP712Domain,
-          Permit,
+          EIP712Domain: EIP712_DOMAIN_TYPE,
+          Permit: PERMIT_TYPE,
         },
         domain,
         primaryType: 'Permit',
@@ -421,36 +407,6 @@ export default function Remove() {
         maxTokenAmount: maxTokenAmount,
       })
 
-      const EIP712Domain = [
-        { name: 'name', type: 'string' },
-        { name: 'version', type: 'string' },
-        { name: 'chainId', type: 'uint256' },
-        { name: 'verifyingContract', type: 'address' },
-      ]
-
-      const Forwarder = [
-        { name: 'from', type: 'address' },
-        { name: 'feeToken', type: 'address' },
-        { name: 'maxTokenAmount', type: 'uint256' },
-        { name: 'deadline', type: 'uint256' },
-        { name: 'nonce', type: 'uint256' },
-        { name: 'data', type: 'bytes' },
-        { name: 'hashedPayload', type: 'bytes32' },
-      ]
-
-      // const RemoveLiquidity = [
-      //   { name: 'tokenA', type: 'address' },
-      //   { name: 'tokenB', type: 'address' },
-      //   { name: 'liquidity', type: 'uint256' },
-      //   { name: 'amountAMin', type: 'uint256' },
-      //   { name: 'amountBMin', type: 'uint256' },
-      //   { name: 'user', type: 'address' },
-      //   { name: 'deadline', type: 'uint256' },
-      //   { name: 'v', type: 'uint8' },
-      //   { name: 'r', type: 'bytes32' },
-      //   { name: 's', type: 'bytes32' },
-      // ]
-
       const domain = {
         name: 'Conveyor V2',
         version: '1',
@@ -521,8 +477,8 @@ export default function Remove() {
 
       const EIP712Msg = {
         types: {
-          EIP712Domain,
-          Forwarder,
+          EIP712Domain: EIP712_DOMAIN_TYPE,
+          Forwarder: FORWARDER_TYPE,
           // RemoveLiquidity,
         },
         domain,

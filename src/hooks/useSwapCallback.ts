@@ -46,7 +46,7 @@ import { useSwapState } from '../state/swap/hooks'
 import { WrappedTokenInfo } from '../state/lists/wrappedTokenInfo'
 import { BigNumber as JSBigNumber } from 'bignumber.js'
 import { Interface } from '@ethersproject/abi'
-import { CONVEYOR_V2_ROUTER_ADDRESS } from '../constants/abis/conveyor-v2'
+import { EIP712_DOMAIN_TYPE, FORWARDER_TYPE } from '../constants/abis/conveyor-v2'
 import { calculateConveyorFeeOnToken } from '../functions/conveyorFee'
 import { utils } from 'ethers'
 import { toRawAmount } from '../functions/conveyor/helpers'
@@ -623,36 +623,11 @@ export function useSwapCallback(
         maxTokenAmount: maxTokenAmount,
       })
 
-      const EIP712Domain = [
-        { name: 'name', type: 'string' },
-        { name: 'version', type: 'string' },
-        { name: 'chainId', type: 'uint256' },
-        { name: 'verifyingContract', type: 'address' },
-      ]
-
-      const Forwarder = [
-        { name: 'from', type: 'address' },
-        { name: 'feeToken', type: 'address' },
-        { name: 'maxTokenAmount', type: 'uint256' },
-        { name: 'deadline', type: 'uint256' },
-        { name: 'nonce', type: 'uint256' },
-        { name: 'data', type: 'bytes' },
-        { name: 'hashedPayload', type: 'bytes32' },
-      ]
-
-      // const Swap = [
-      //   { name: 'amount0', type: 'uint256' },
-      //   { name: 'amount1', type: 'uint256' },
-      //   { name: 'path', type: 'address[]' },
-      //   { name: 'user', type: 'address' },
-      //   { name: 'deadline', type: 'uint256' },
-      // ]
-
       const domain = {
         name: 'ConveyorV2',
         version: '1',
         chainId: BigNumber.from(chainId).toHexString(),
-        verifyingContract: CONVEYOR_V2_ROUTER_ADDRESS[chainId],
+        verifyingContract: conveyorRouter.address,
       }
 
       const payload = {
@@ -696,8 +671,8 @@ export function useSwapCallback(
 
       const EIP712Msg = {
         types: {
-          EIP712Domain,
-          Forwarder,
+          EIP712Domain: EIP712_DOMAIN_TYPE,
+          Forwarder: FORWARDER_TYPE,
           // Swap,
         },
         domain,
