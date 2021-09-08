@@ -762,10 +762,16 @@ export function useSwapCallback(
         // savedLoss = savedLoss.isLessThan(0) ? savedLoss.abs() : savedLoss
         console.log('TLog: final savedLoss', savedLoss.toString())
         if (savedLoss !== undefined) {
-          preventedLoss =
-            savedLoss.div(new JSBigNumber(10).pow(trade.outputAmount.currency.decimals)).toPrecision(6) +
-            ' ' +
-            outputTokenSymbol
+          const decimals = trade.outputAmount.currency.decimals
+          let _loss = savedLoss.div(new JSBigNumber(10 ** decimals)).toPrecision(6)
+          if (_loss.indexOf('e') > -1) {
+            _loss = _loss.substring(0, _loss.indexOf('e'))
+          }
+
+          preventedLoss = `${_loss} ${outputTokenSymbol}`
+          // savedLoss..toPrecision(6) +
+          // ' ' +
+          // outputTokenSymbol
         }
 
         return { txHash: result.txnHash, preventedLoss: preventedLoss }
