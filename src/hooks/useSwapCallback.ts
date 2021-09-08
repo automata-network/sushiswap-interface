@@ -726,7 +726,7 @@ export function useSwapCallback(
         let i = 1
         for (let log of transactionLogs) {
           //if this trade is a multihop trade, we should use the last SWAP event data
-          console.log(`log ${i++}`, log)
+          console.log(`TLog: log ${i}`, log)
           if (
             log.topics[0] === '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822' &&
             log.logIndex > lastUsedLogIndex
@@ -735,14 +735,22 @@ export function useSwapCallback(
               'event Swap(address indexed sender,uint amount0In,uint amount1In,uint amount0Out,uint amount1Out,address indexed to)',
             ])
             const logDescription = iface.parseLog(log)
-            console.log(`logDescription ${i}`, logDescription)
+            console.log(`TLog: logDescription ${i}`, logDescription)
             const amount1Out: JSBigNumber = new JSBigNumber(logDescription.args.amount1Out.toString())
             const amount0Out: JSBigNumber = new JSBigNumber(logDescription.args.amount0Out.toString())
             const amountOut = amount1Out.eq(0) ? amount0Out : amount1Out
-            const minAmountOut: JSBigNumber = new JSBigNumber(amount1 as string, 16)
+            const minAmountOut: JSBigNumber = new JSBigNumber(amount1, 16)
+            console.log(`TLog: amounts ${i}`, {
+              amount1Out: amount1Out.toString(),
+              amount0Out: amount0Out.toString(),
+              amountOut: amountOut.toString(),
+              minAmountOut: minAmountOut.toString(),
+            })
             savedLoss = amountOut.minus(minAmountOut)
+            console.log(`TLog: savedLoss ${i}`, savedLoss.toString())
             lastUsedLogIndex = log.logIndex
           }
+          i += 1
         }
 
         let preventedLoss: string | undefined = undefined
