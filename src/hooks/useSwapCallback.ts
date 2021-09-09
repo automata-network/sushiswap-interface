@@ -752,9 +752,9 @@ export function useSwapCallback(
               minAmountOut: minAmountOut.toString(),
             })
             let potentialLoss = amountOut.minus(minAmountOut)
-            if (potentialLoss.isLessThan(0)) {
-              potentialLoss = potentialLoss.abs()
-            }
+            // if (potentialLoss.isLessThan(0)) {
+            //   potentialLoss = potentialLoss.abs()
+            // }
             console.log(`TLog: potentialLoss ${i}`, potentialLoss.toString())
             savedLoss = typeof savedLoss === 'undefined' ? potentialLoss : savedLoss.minus(potentialLoss)
             // lastUsedLogIndex = log.logIndex
@@ -765,9 +765,9 @@ export function useSwapCallback(
         let preventedLoss: string | undefined = undefined
         // console.log('TLog: final savedLoss', savedLoss.toString())
         if (savedLoss !== undefined) {
-          if (savedLoss.isLessThan(0)) {
-            savedLoss = savedLoss.abs()
-          }
+          // if (savedLoss.isLessThan(0)) {
+          //   savedLoss = savedLoss.abs()
+          // }
 
           const decimals = trade.outputAmount.currency.decimals
 
