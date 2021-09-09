@@ -752,9 +752,16 @@ export function useSwapCallback(
             //   potentialLoss = potentialLoss.abs()
             // }
             console.log(`TLog: potentialLoss ${i}`, potentialLoss.toString())
-            // savedLoss = typeof savedLoss === 'undefined' ? potentialLoss : savedLoss.sub(potentialLoss)
+            savedLoss =
+              typeof savedLoss === 'undefined'
+                ? potentialLoss
+                : potentialLoss.lt(savedLoss)
+                ? savedLoss.sub(potentialLoss)
+                : potentialLoss.gt(savedLoss)
+                ? potentialLoss.sub(savedLoss)
+                : savedLoss
             // savedLoss = typeof savedLoss === 'undefined' ? potentialLoss : potentialLoss.sub(savedLoss)
-            savedLoss = potentialLoss
+            // savedLoss = potentialLoss
             // lastUsedLogIndex = log.logIndex
           }
           i += 1
