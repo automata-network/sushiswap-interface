@@ -60,7 +60,7 @@ import { utils } from 'ethers'
 import { BigNumber as JSBigNumber } from 'bignumber.js'
 import { toRawAmount } from '../../../functions/conveyor/helpers'
 import { EIP712_DOMAIN_TYPE, FORWARDER_TYPE, PERMIT_TYPE } from '../../../constants/abis/conveyor-v2'
-import useVercelEnvironment from '../../../hooks/useVercelEnvironment'
+import useNodeEnvironment from '../../../hooks/useNodeEnvironment'
 
 const { keccak256, toUtf8Bytes, defaultAbiCoder, Interface } = utils
 
@@ -240,7 +240,7 @@ export default function Remove() {
 
   const [userLiquidityGasLimit] = useUserLiquidityGasLimit()
 
-  const { deploymentEnv } = useVercelEnvironment()
+  const { deploymentEnv } = useNodeEnvironment()
 
   async function onRemove() {
     if (!chainId || !library || !account || !deadline || !router) throw new Error('missing dependencies')

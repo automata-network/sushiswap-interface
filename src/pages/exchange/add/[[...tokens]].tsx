@@ -59,7 +59,7 @@ import ConveyorGasFee from '../../../features/trade/ConveyorGasFee'
 import { BigNumber as JSBigNumber } from 'bignumber.js'
 import { utils } from 'ethers'
 import { toRawAmount } from '../../../functions/conveyor/helpers'
-import useVercelEnvironment from '../../../hooks/useVercelEnvironment'
+import useNodeEnvironment from '../../../hooks/useNodeEnvironment'
 
 const { keccak256, defaultAbiCoder, toUtf8Bytes, Interface } = utils
 
@@ -167,7 +167,7 @@ export default function Add() {
 
   const [userLiquidityGasLimit] = useUserLiquidityGasLimit()
 
-  const { deploymentEnv } = useVercelEnvironment()
+  const { deploymentEnv } = useNodeEnvironment()
 
   async function onAdd() {
     if (!chainId || !library || !account || !routerContract) return

@@ -80,7 +80,7 @@ import { warningSeverity } from '../../../functions/prices'
 import { CONVEYOR_RELAYER_URI } from '../../../config/conveyor'
 import ConveyorGasFee from '../../../features/trade/ConveyorGasFee'
 import BigNumber from 'bignumber.js'
-import useVercelEnvironment from '../../../hooks/useVercelEnvironment'
+import useNodeEnvironment from '../../../hooks/useNodeEnvironment'
 
 export default function Swap() {
   const { i18n } = useLingui()
@@ -134,7 +134,7 @@ export default function Swap() {
   // const doArcher = archerRelay !== undefined && useArcher
   const doArcher = undefined
 
-  const { deploymentEnv } = useVercelEnvironment()
+  const { deploymentEnv } = useNodeEnvironment()
 
   // Conveyor
   const [useConveyor] = useUserConveyorUseRelay()
@@ -470,7 +470,7 @@ export default function Swap() {
       const gasEstimation = new BigNumber(userConveyorGasEstimation).div(
         new BigNumber(10).pow(currencies[Field.INPUT]!.decimals).toString()
       )
-      console.log('gasEstimation', gasEstimation.toString())
+
       setConveyorGasEstimation(gasEstimation.toString())
     })()
   }, [currencies])

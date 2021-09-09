@@ -46,12 +46,12 @@ import { useSwapState } from '../state/swap/hooks'
 import { WrappedTokenInfo } from '../state/lists/wrappedTokenInfo'
 import { BigNumber as JSBigNumber } from 'bignumber.js'
 import { Interface } from '@ethersproject/abi'
-import { CONVEYOR_V2_ROUTER_ABI, EIP712_DOMAIN_TYPE, FORWARDER_TYPE } from '../constants/abis/conveyor-v2'
+import { EIP712_DOMAIN_TYPE, FORWARDER_TYPE } from '../constants/abis/conveyor-v2'
 import { calculateConveyorFeeOnToken } from '../functions/conveyorFee'
 import { utils } from 'ethers'
 import { toRawAmount } from '../functions/conveyor/helpers'
 import { formatUnits } from '@ethersproject/units'
-import useVercelEnvironment from './useVercelEnvironment'
+import useNodeEnvironment from './useNodeEnvironment'
 
 const { defaultAbiCoder, toUtf8Bytes, solidityPack, Interface: EthInterface } = utils
 
@@ -275,7 +275,7 @@ export function useSwapCallback(
   const isExpertMode = useIsExpertMode()
   const [userSwapGasLimit] = useUserSwapGasLimit()
 
-  const { deploymentEnv } = useVercelEnvironment()
+  const { deploymentEnv } = useNodeEnvironment()
 
   return useMemo(() => {
     if (!trade || !library || !account || !chainId) {
