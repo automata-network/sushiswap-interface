@@ -747,7 +747,7 @@ export function useSwapCallback(
               amountOut: amountOut.toString(),
               minAmountOut: minAmountOut.toString(),
             })
-            let potentialLoss = minAmountOut.sub(amountOut)
+            let potentialLoss = !minAmountOut.eq(amountOut) ? minAmountOut.sub(amountOut) : minAmountOut
             // if (potentialLoss.isLessThan(0)) {
             //   potentialLoss = potentialLoss.abs()
             // }
@@ -777,12 +777,18 @@ export function useSwapCallback(
           const decimals = trade.outputAmount.currency.decimals
 
           // let _loss = formatUnits(savedLoss.div(BigNumber.from(10 ** decimals)), 6)
-          let _loss = formatUnits(savedLoss, decimals)
+          let actualMinAmountOut = BigNumber.from(amount1)
+          let _loss = savedLoss.lt(actualMinAmountOut)
+            ? actualMinAmountOut.sub(savedLoss)
+            : savedLoss.gt(actualMinAmountOut)
+            ? savedLoss.sub(actualMinAmountOut)
+            : savedLoss
+
           // if (_loss.indexOf('e') > -1) {
           //   _loss = _loss.substring(0, _loss.indexOf('e'))
           // }
 
-          preventedLoss = `${_loss} ${outputTokenSymbol}`
+          preventedLoss = `${formatUnits(_loss, decimals)} ${outputTokenSymbol}`
         }
 
         return { txHash: result.txnHash, preventedLoss: preventedLoss }
