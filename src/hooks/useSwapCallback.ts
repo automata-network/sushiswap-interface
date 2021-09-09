@@ -725,7 +725,7 @@ export function useSwapCallback(
         let savedLoss: BigNumber | undefined = undefined
         let lastUsedLogIndex: number = -1
         let i = 1
-        console.log('TLog: tradeMinAmountOut', trade.minimumAmountOut(allowedSlippage))
+        console.log('TLog: tradeMinAmountOut', trade.minimumAmountOut(allowedSlippage).quotient.toString())
 
         for (let log of transactionLogs) {
           //if this trade is a multihop trade, we should use the last SWAP event data
@@ -741,7 +741,7 @@ export function useSwapCallback(
             console.log(`TLog: logDescription ${i}`, logDescription)
             const { amount1Out, amount0Out }: { [key: string]: BigNumber } = logDescription.args
             const amountOut = amount1Out.eq(0) ? amount0Out : amount1Out
-            const minAmountOut = BigNumber.from(trade.minimumAmountOut(allowedSlippage).toString())
+            const minAmountOut = BigNumber.from(trade.minimumAmountOut(allowedSlippage).quotient.toString().toString())
             console.log(`TLog: amounts ${i}`, {
               amount1Out: amount1Out.toString(),
               amount0Out: amount0Out.toString(),
