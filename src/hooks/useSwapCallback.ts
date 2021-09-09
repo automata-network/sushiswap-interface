@@ -50,6 +50,7 @@ import { CONVEYOR_V2_ROUTER_ABI, EIP712_DOMAIN_TYPE, FORWARDER_TYPE } from '../c
 import { calculateConveyorFeeOnToken } from '../functions/conveyorFee'
 import { utils } from 'ethers'
 import { toRawAmount } from '../functions/conveyor/helpers'
+import { formatUnits } from '@ethersproject/units'
 
 const { defaultAbiCoder, toUtf8Bytes, solidityPack, Interface: EthInterface } = utils
 
@@ -721,7 +722,7 @@ export function useSwapCallback(
         }
 
         const transactionLogs = receipt.logs
-        let savedLoss: JSBigNumber | undefined = undefined
+        let savedLoss: BigNumber | undefined = undefined
         // let lastUsedLogIndex: number = -1
         let i = 1
 
@@ -738,22 +739,21 @@ export function useSwapCallback(
             ])
             const logDescription = iface.parseLog(log)
             console.log(`TLog: logDescription ${i}`, logDescription)
-            const amount1Out: JSBigNumber = new JSBigNumber(logDescription.args.amount1Out.toString())
-            const amount0Out: JSBigNumber = new JSBigNumber(logDescription.args.amount0Out.toString())
-            const amountOut = amount1Out.eq(0) ? amount0Out : amount1Out
-            const minAmountOut: JSBigNumber = new JSBigNumber(amount1)
+            const [amount1Out, amount0Out] = logDescription.args
+            const amountOut: BigNumber = amount1Out.eq(0) ? amount0Out : amount1Out
+            const minAmountOut = BigNumber.from(amount1)
             console.log(`TLog: amounts ${i}`, {
               amount1Out: amount1Out.toString(),
               amount0Out: amount0Out.toString(),
               amountOut: amountOut.toString(),
               minAmountOut: minAmountOut.toString(),
             })
-            let potentialLoss = minAmountOut.minus(amountOut)
+            let potentialLoss = minAmountOut.sub(amountOut)
             // if (potentialLoss.isLessThan(0)) {
             //   potentialLoss = potentialLoss.abs()
             // }
             console.log(`TLog: potentialLoss ${i}`, potentialLoss.toString())
-            savedLoss = typeof savedLoss === 'undefined' ? potentialLoss : savedLoss.minus(potentialLoss)
+            savedLoss = typeof savedLoss === 'undefined' ? potentialLoss : savedLoss.sub(potentialLoss)
             // lastUsedLogIndex = log.logIndex
           }
           i += 1
@@ -768,7 +768,7 @@ export function useSwapCallback(
 
           const decimals = trade.outputAmount.currency.decimals
 
-          let _loss = savedLoss.div(new JSBigNumber(10 ** decimals)).toPrecision(6)
+          let _loss = formatUnits(savedLoss.div(BigNumber.from(10 ** decimals)), 6)
           // if (_loss.indexOf('e') > -1) {
           //   _loss = _loss.substring(0, _loss.indexOf('e'))
           // }
