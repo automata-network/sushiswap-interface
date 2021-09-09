@@ -53,6 +53,7 @@ interface TransactionSubmittedContentProps {
   chainId: ChainId
   currencyToAdd?: Currency | undefined
   inline?: boolean // not in modal
+  preventedLoss?: string
 }
 
 export const TransactionSubmittedContent: FC<TransactionSubmittedContentProps> = ({
@@ -60,6 +61,7 @@ export const TransactionSubmittedContent: FC<TransactionSubmittedContentProps> =
   chainId,
   hash,
   currencyToAdd,
+  preventedLoss,
 }) => {
   const { i18n } = useLingui()
   const { library } = useActiveWeb3React()
@@ -74,6 +76,12 @@ export const TransactionSubmittedContent: FC<TransactionSubmittedContentProps> =
       </div>
       <div className="flex flex-col items-center justify-center gap-1">
         <div className="text-xl font-bold">{i18n._(t`Transaction Submitted`)}</div>
+        {preventedLoss && hash && (
+          <RowFixed>
+            <div style={{ fontWeight: 500, fontSize: 14, paddingBottom: 4 }}>MEV protection: {preventedLoss}</div>
+            {/* <QuestionHelper text="Based on the minimum received amount and actual received amount" /> */}
+          </RowFixed>
+        )}
         {chainId && hash && (
           <ExternalLink href={getExplorerLink(chainId, hash, 'transaction')}>
             <div className="font-bold text-blue">View on explorer</div>
@@ -168,6 +176,7 @@ interface ConfirmationModalProps {
   pendingText: string
   pendingText2?: string
   currencyToAdd?: Currency | undefined
+  preventedLoss?: string
 }
 
 const TransactionConfirmationModal: FC<ConfirmationModalProps> = ({
@@ -179,6 +188,7 @@ const TransactionConfirmationModal: FC<ConfirmationModalProps> = ({
   pendingText2,
   content,
   currencyToAdd,
+  preventedLoss,
 }) => {
   const { chainId } = useActiveWeb3React()
 
@@ -195,6 +205,7 @@ const TransactionConfirmationModal: FC<ConfirmationModalProps> = ({
           hash={hash}
           onDismiss={onDismiss}
           currencyToAdd={currencyToAdd}
+          preventedLoss={preventedLoss}
         />
       ) : (
         content()

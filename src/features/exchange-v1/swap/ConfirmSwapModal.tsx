@@ -38,6 +38,7 @@ export default function ConfirmSwapModal({
   attemptingTxn,
   txHash,
   minerBribe,
+  preventedLoss,
 }: {
   isOpen: boolean
   trade: V2Trade<Currency, Currency, TradeType> | undefined
@@ -47,6 +48,7 @@ export default function ConfirmSwapModal({
   recipient: string | null
   allowedSlippage: Percent
   minerBribe?: string
+  preventedLoss?: string
   onAcceptChanges: () => void
   onConfirm: () => void
   swapErrorMessage: string | undefined
@@ -121,6 +123,7 @@ export default function ConfirmSwapModal({
       pendingText={pendingText}
       pendingText2={pendingText2}
       currencyToAdd={trade?.outputAmount.currency}
+      preventedLoss={preventedLoss}
     />
   )
 }

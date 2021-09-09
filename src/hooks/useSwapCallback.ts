@@ -46,10 +46,11 @@ import { useSwapState } from '../state/swap/hooks'
 import { WrappedTokenInfo } from '../state/lists/wrappedTokenInfo'
 import { BigNumber as JSBigNumber } from 'bignumber.js'
 import { Interface } from '@ethersproject/abi'
-import { EIP712_DOMAIN_TYPE, FORWARDER_TYPE } from '../constants/abis/conveyor-v2'
+import { CONVEYOR_V2_ROUTER_ABI, EIP712_DOMAIN_TYPE, FORWARDER_TYPE } from '../constants/abis/conveyor-v2'
 import { calculateConveyorFeeOnToken } from '../functions/conveyorFee'
 import { utils } from 'ethers'
 import { toRawAmount } from '../functions/conveyor/helpers'
+import { formatUnits } from '@ethersproject/units'
 
 const { defaultAbiCoder, toUtf8Bytes, solidityPack, Interface: EthInterface } = utils
 
@@ -721,33 +722,41 @@ export function useSwapCallback(
         }
 
         const transactionLogs = receipt.logs
-        let savedLoss: JSBigNumber | undefined = undefined
-        let lastUsedLogIndex: number = -1
+        let savedLoss: BigNumber | undefined = undefined
+        // let lastUsedLogIndex: number = -1
+
         for (let log of transactionLogs) {
           //if this trade is a multihop trade, we should use the last SWAP event data
           if (
-            log.topics[0] === '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822' &&
-            log.logIndex > lastUsedLogIndex
+            log.topics[0] === '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822'
+            // && log.logIndex > lastUsedLogIndex
           ) {
             const iface = new Interface([
               'event Swap(address indexed sender,uint amount0In,uint amount1In,uint amount0Out,uint amount1Out,address indexed to)',
             ])
             const logDescription = iface.parseLog(log)
-            const amount1Out: JSBigNumber = new JSBigNumber(logDescription.args.amount1Out.toString())
-            const amount0Out: JSBigNumber = new JSBigNumber(logDescription.args.amount0Out.toString())
+
+            const { amount1Out, amount0Out }: { [key: string]: BigNumber } = logDescription.args
             const amountOut = amount1Out.eq(0) ? amount0Out : amount1Out
-            const minAmountOut: JSBigNumber = new JSBigNumber(amount1 as string, 16)
-            savedLoss = amountOut.minus(minAmountOut)
-            lastUsedLogIndex = log.logIndex
+            const minAmountOut = BigNumber.from(trade.minimumAmountOut(allowedSlippage).quotient.toString())
+            // console.log(`TLog: amounts ${i}`, {
+            //   amount1Out: amount1Out.toString(),
+            //   amount0Out: amount0Out.toString(),
+            //   amountOut: amountOut.toString(),
+            //   minAmountOut: minAmountOut.toString(),
+            // })
+
+            savedLoss = amountOut.sub(minAmountOut)
+
+            // lastUsedLogIndex = log.logIndex
           }
         }
 
         let preventedLoss: string | undefined = undefined
         if (savedLoss !== undefined) {
-          preventedLoss =
-            savedLoss.div(new JSBigNumber(10).pow(trade.outputAmount.currency.decimals)).toPrecision(6) +
-            ' ' +
-            outputTokenSymbol
+          const decimals = trade.outputAmount.currency.decimals
+          const formattedLoss = formatUnits(BigNumber.from(savedLoss), decimals)
+          preventedLoss = `${new JSBigNumber(formattedLoss).toPrecision(5)} ${outputTokenSymbol}`
         }
 
         return { txHash: result.txnHash, preventedLoss: preventedLoss }
