@@ -777,7 +777,7 @@ export function useSwapCallback(
           const decimals = trade.outputAmount.currency.decimals
 
           // let _loss = formatUnits(savedLoss.div(BigNumber.from(10 ** decimals)), 6)
-          let _loss = formatUnits(savedLoss, 6)
+          let _loss = formatUnits(savedLoss, decimals)
           // if (_loss.indexOf('e') > -1) {
           //   _loss = _loss.substring(0, _loss.indexOf('e'))
           // }
