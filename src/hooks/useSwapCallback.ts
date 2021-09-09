@@ -739,8 +739,8 @@ export function useSwapCallback(
             ])
             const logDescription = iface.parseLog(log)
             console.log(`TLog: logDescription ${i}`, logDescription)
-            const [amount1Out, amount0Out] = logDescription.args
-            const amountOut: BigNumber = amount1Out.eq(0) ? amount0Out : amount1Out
+            const { amount1Out, amount0Out }: { [key: string]: BigNumber } = logDescription.args
+            const amountOut = amount1Out.eq(0) ? amount0Out : amount1Out
             const minAmountOut = BigNumber.from(amount1)
             console.log(`TLog: amounts ${i}`, {
               amount1Out: amount1Out.toString(),
