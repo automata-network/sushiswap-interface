@@ -748,7 +748,7 @@ export function useSwapCallback(
               amountOut: amountOut.toString(),
               minAmountOut: minAmountOut.toString(),
             })
-            let potentialLoss = amountOut.minus(minAmountOut)
+            let potentialLoss = minAmountOut.minus(amountOut)
             // if (potentialLoss.isLessThan(0)) {
             //   potentialLoss = potentialLoss.abs()
             // }
