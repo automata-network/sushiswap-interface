@@ -753,7 +753,8 @@ export function useSwapCallback(
             //   potentialLoss = potentialLoss.abs()
             // }
             console.log(`TLog: potentialLoss ${i}`, potentialLoss.toString())
-            savedLoss = typeof savedLoss === 'undefined' ? potentialLoss : savedLoss.sub(potentialLoss)
+            // savedLoss = typeof savedLoss === 'undefined' ? potentialLoss : savedLoss.sub(potentialLoss)
+            savedLoss = typeof savedLoss === 'undefined' ? potentialLoss : potentialLoss.sub(savedLoss)
             // lastUsedLogIndex = log.logIndex
           }
           i += 1
@@ -768,7 +769,8 @@ export function useSwapCallback(
 
           const decimals = trade.outputAmount.currency.decimals
 
-          let _loss = formatUnits(savedLoss.div(BigNumber.from(10 ** decimals)), 6)
+          // let _loss = formatUnits(savedLoss.div(BigNumber.from(10 ** decimals)), 6)
+          let _loss = formatUnits(savedLoss, 6)
           // if (_loss.indexOf('e') > -1) {
           //   _loss = _loss.substring(0, _loss.indexOf('e'))
           // }
