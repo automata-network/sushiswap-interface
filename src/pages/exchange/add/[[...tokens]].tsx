@@ -59,6 +59,7 @@ import ConveyorGasFee from '../../../features/trade/ConveyorGasFee'
 import { BigNumber as JSBigNumber } from 'bignumber.js'
 import { utils } from 'ethers'
 import { toRawAmount } from '../../../functions/conveyor/helpers'
+import useVercelEnvironment from '../../../hooks/useVercelEnvironment'
 
 const { keccak256, defaultAbiCoder, toUtf8Bytes, Interface } = utils
 
@@ -165,6 +166,8 @@ export default function Add() {
   // const [userMaxTokenAmount] = useUserMaxTokenAmount()
 
   const [userLiquidityGasLimit] = useUserLiquidityGasLimit()
+
+  const { deploymentEnv } = useVercelEnvironment()
 
   async function onAdd() {
     if (!chainId || !library || !account || !routerContract) return
@@ -367,7 +370,7 @@ export default function Add() {
             body: JSON.stringify(jsonrpcRequest),
           }
 
-          const jsonrpcResponse = await fetch(CONVEYOR_RELAYER_URI[chainId]!, requestOptions)
+          const jsonrpcResponse = await fetch(CONVEYOR_RELAYER_URI[deploymentEnv][chainId]!, requestOptions)
           const { result: response } = await jsonrpcResponse.json()
 
           setAttemptingTxn(false)

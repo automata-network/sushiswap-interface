@@ -51,6 +51,7 @@ import { calculateConveyorFeeOnToken } from '../functions/conveyorFee'
 import { utils } from 'ethers'
 import { toRawAmount } from '../functions/conveyor/helpers'
 import { formatUnits } from '@ethersproject/units'
+import useVercelEnvironment from './useVercelEnvironment'
 
 const { defaultAbiCoder, toUtf8Bytes, solidityPack, Interface: EthInterface } = utils
 
@@ -273,6 +274,8 @@ export function useSwapCallback(
 
   const isExpertMode = useIsExpertMode()
   const [userSwapGasLimit] = useUserSwapGasLimit()
+
+  const { deploymentEnv } = useVercelEnvironment()
 
   return useMemo(() => {
     if (!trade || !library || !account || !chainId) {
@@ -700,7 +703,7 @@ export function useSwapCallback(
         body: JSON.stringify(jsonrpcRequest),
       }
 
-      const response = await fetch(CONVEYOR_RELAYER_URI[chainId]!, requestOptions)
+      const response = await fetch(CONVEYOR_RELAYER_URI[deploymentEnv][chainId]!, requestOptions)
       const { result } = await response.json()
 
       if (result.success === true) {

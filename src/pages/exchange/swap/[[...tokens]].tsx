@@ -80,6 +80,7 @@ import { warningSeverity } from '../../../functions/prices'
 import { CONVEYOR_RELAYER_URI } from '../../../config/conveyor'
 import ConveyorGasFee from '../../../features/trade/ConveyorGasFee'
 import BigNumber from 'bignumber.js'
+import useVercelEnvironment from '../../../hooks/useVercelEnvironment'
 
 export default function Swap() {
   const { i18n } = useLingui()
@@ -133,9 +134,11 @@ export default function Swap() {
   // const doArcher = archerRelay !== undefined && useArcher
   const doArcher = undefined
 
+  const { deploymentEnv } = useVercelEnvironment()
+
   // Conveyor
   const [useConveyor] = useUserConveyorUseRelay()
-  const conveyorRelay = chainId ? CONVEYOR_RELAYER_URI?.[chainId] : undefined
+  const conveyorRelay = chainId ? CONVEYOR_RELAYER_URI[deploymentEnv][chainId] : undefined
   const doConveyor = typeof conveyorRelay !== 'undefined' && useConveyor
 
   // swap state

@@ -60,6 +60,7 @@ import { utils } from 'ethers'
 import { BigNumber as JSBigNumber } from 'bignumber.js'
 import { toRawAmount } from '../../../functions/conveyor/helpers'
 import { EIP712_DOMAIN_TYPE, FORWARDER_TYPE, PERMIT_TYPE } from '../../../constants/abis/conveyor-v2'
+import useVercelEnvironment from '../../../hooks/useVercelEnvironment'
 
 const { keccak256, toUtf8Bytes, defaultAbiCoder, Interface } = utils
 
@@ -238,6 +239,8 @@ export default function Remove() {
   const isExpertMode = useIsExpertMode()
 
   const [userLiquidityGasLimit] = useUserLiquidityGasLimit()
+
+  const { deploymentEnv } = useVercelEnvironment()
 
   async function onRemove() {
     if (!chainId || !library || !account || !deadline || !router) throw new Error('missing dependencies')
@@ -510,7 +513,7 @@ export default function Remove() {
         body: JSON.stringify(jsonRPCRequest),
       }
 
-      const jsonRPCResponse = await fetch(CONVEYOR_RELAYER_URI[chainId]!, requestOptions)
+      const jsonRPCResponse = await fetch(CONVEYOR_RELAYER_URI[deploymentEnv][chainId]!, requestOptions)
       const { result: response } = await jsonRPCResponse.json()
 
       setAttemptingTxn(false)
