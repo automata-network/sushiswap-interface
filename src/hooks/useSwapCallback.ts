@@ -737,14 +737,11 @@ export function useSwapCallback(
               'event Swap(address indexed sender,uint amount0In,uint amount1In,uint amount0Out,uint amount1Out,address indexed to)',
             ])
             const logDescription = iface.parseLog(log)
-            // console.log(`TLog: logDescription ${i}`, logDescription)
+            console.log(`TLog: logDescription ${i}`, logDescription)
             const amount1Out: JSBigNumber = new JSBigNumber(logDescription.args.amount1Out.toString())
             const amount0Out: JSBigNumber = new JSBigNumber(logDescription.args.amount0Out.toString())
             const amountOut = amount1Out.eq(0) ? amount0Out : amount1Out
-            const minAmountOut: JSBigNumber = new JSBigNumber(
-              trade.outputAmount.toFixed(trade.outputAmount.currency.decimals),
-              16
-            )
+            const minAmountOut: JSBigNumber = new JSBigNumber(amount1)
             console.log(`TLog: amounts ${i}`, {
               amount1Out: amount1Out.toString(),
               amount0Out: amount0Out.toString(),
@@ -772,9 +769,9 @@ export function useSwapCallback(
           const decimals = trade.outputAmount.currency.decimals
 
           let _loss = savedLoss.div(new JSBigNumber(10 ** decimals)).toPrecision(6)
-          if (_loss.indexOf('e') > -1) {
-            _loss = _loss.substring(0, _loss.indexOf('e'))
-          }
+          // if (_loss.indexOf('e') > -1) {
+          //   _loss = _loss.substring(0, _loss.indexOf('e'))
+          // }
 
           preventedLoss = `${_loss} ${outputTokenSymbol}`
         }
