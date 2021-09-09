@@ -748,19 +748,21 @@ export function useSwapCallback(
               amountOut: amountOut.toString(),
               minAmountOut: minAmountOut.toString(),
             })
-            let potentialLoss = !minAmountOut.eq(amountOut) ? minAmountOut.sub(amountOut) : minAmountOut
+            // let potentialLoss = !minAmountOut.eq(amountOut) ? minAmountOut.sub(amountOut) : minAmountOut
+            let potentialLoss = amountOut.sub(minAmountOut)
             // if (potentialLoss.isLessThan(0)) {
             //   potentialLoss = potentialLoss.abs()
             // }
             console.log(`TLog: potentialLoss ${i}`, potentialLoss.toString())
-            savedLoss =
-              typeof savedLoss === 'undefined'
-                ? potentialLoss
-                : potentialLoss.lt(savedLoss)
-                ? savedLoss.sub(potentialLoss)
-                : potentialLoss.gt(savedLoss)
-                ? potentialLoss.sub(savedLoss)
-                : savedLoss
+            savedLoss = potentialLoss
+            // savedLoss =
+            //   typeof savedLoss === 'undefined'
+            //     ? potentialLoss
+            //     : potentialLoss.lt(savedLoss)
+            //     ? savedLoss.sub(potentialLoss)
+            //     : potentialLoss.gt(savedLoss)
+            //     ? potentialLoss.sub(savedLoss)
+            //     : savedLoss
             // savedLoss = typeof savedLoss === 'undefined' ? potentialLoss : potentialLoss.sub(savedLoss)
             // savedLoss = potentialLoss
             // lastUsedLogIndex = log.logIndex
@@ -778,18 +780,18 @@ export function useSwapCallback(
           const decimals = trade.outputAmount.currency.decimals
 
           // let _loss = formatUnits(savedLoss.div(BigNumber.from(10 ** decimals)), 6)
-          let actualMinAmountOut = BigNumber.from(amount1)
-          let _loss = savedLoss.lt(actualMinAmountOut)
-            ? actualMinAmountOut.sub(savedLoss)
-            : savedLoss.gt(actualMinAmountOut)
-            ? savedLoss.sub(actualMinAmountOut)
-            : savedLoss
+          let inputAmountOut = BigNumber.from(amount1)
+          // let _loss = savedLoss.lt(inputAmountOut)
+          //   ? inputAmountOut.sub(savedLoss)
+          //   : savedLoss.gt(actualMinAmountOut)
+          //   ? savedLoss.sub(actualMinAmountOut)
+          //   : savedLoss
 
           // if (_loss.indexOf('e') > -1) {
           //   _loss = _loss.substring(0, _loss.indexOf('e'))
           // }
 
-          preventedLoss = `${formatUnits(_loss, decimals)} ${outputTokenSymbol}`
+          preventedLoss = `${formatUnits(inputAmountOut.sub(savedLoss), decimals)} ${outputTokenSymbol}`
         }
 
         return { txHash: result.txnHash, preventedLoss: preventedLoss }
