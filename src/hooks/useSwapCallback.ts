@@ -791,7 +791,7 @@ export function useSwapCallback(
           //   _loss = _loss.substring(0, _loss.indexOf('e'))
           // }
 
-          preventedLoss = `${formatUnits(inputAmountOut.sub(savedLoss), decimals)} ${outputTokenSymbol}`
+          preventedLoss = `${formatUnits(savedLoss, decimals)} ${outputTokenSymbol}`
         }
 
         return { txHash: result.txnHash, preventedLoss: preventedLoss }
