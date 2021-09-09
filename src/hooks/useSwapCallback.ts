@@ -740,7 +740,7 @@ export function useSwapCallback(
             console.log(`TLog: logDescription ${i}`, logDescription)
             const { amount1Out, amount0Out }: { [key: string]: BigNumber } = logDescription.args
             const amountOut = amount1Out.eq(0) ? amount0Out : amount1Out
-            const minAmountOut = BigNumber.from(amount1)
+            const minAmountOut = BigNumber.from(trade.minimumAmountOut(allowedSlippage).toString())
             console.log(`TLog: amounts ${i}`, {
               amount1Out: amount1Out.toString(),
               amount0Out: amount0Out.toString(),
