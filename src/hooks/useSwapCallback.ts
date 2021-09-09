@@ -754,7 +754,9 @@ export function useSwapCallback(
 
         let preventedLoss: string | undefined = undefined
         if (savedLoss !== undefined) {
-          preventedLoss = `${formatUnits(savedLoss, 5)} ${outputTokenSymbol}`
+          const decimals = trade.outputAmount.currency.decimals
+          const formattedLoss = formatUnits(BigNumber.from(savedLoss), decimals)
+          preventedLoss = `${new JSBigNumber(formattedLoss).toPrecision(5)} ${outputTokenSymbol}`
         }
 
         return { txHash: result.txnHash, preventedLoss: preventedLoss }
