@@ -723,75 +723,38 @@ export function useSwapCallback(
 
         const transactionLogs = receipt.logs
         let savedLoss: BigNumber | undefined = undefined
-        let lastUsedLogIndex: number = -1
-        let i = 1
-        console.log('TLog: tradeMinAmountOut', trade.minimumAmountOut(allowedSlippage).quotient.toString())
+        // let lastUsedLogIndex: number = -1
 
         for (let log of transactionLogs) {
           //if this trade is a multihop trade, we should use the last SWAP event data
-          console.log(`TLog: log ${i}`, log)
           if (
-            log.topics[0] === '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822' &&
-            log.logIndex > lastUsedLogIndex
+            log.topics[0] === '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822'
+            // && log.logIndex > lastUsedLogIndex
           ) {
             const iface = new Interface([
               'event Swap(address indexed sender,uint amount0In,uint amount1In,uint amount0Out,uint amount1Out,address indexed to)',
             ])
             const logDescription = iface.parseLog(log)
-            console.log(`TLog: logDescription ${i}`, logDescription)
+
             const { amount1Out, amount0Out }: { [key: string]: BigNumber } = logDescription.args
             const amountOut = amount1Out.eq(0) ? amount0Out : amount1Out
-            const minAmountOut = BigNumber.from(trade.minimumAmountOut(allowedSlippage).quotient.toString().toString())
-            console.log(`TLog: amounts ${i}`, {
-              amount1Out: amount1Out.toString(),
-              amount0Out: amount0Out.toString(),
-              amountOut: amountOut.toString(),
-              minAmountOut: minAmountOut.toString(),
-            })
-            // let potentialLoss = !minAmountOut.eq(amountOut) ? minAmountOut.sub(amountOut) : minAmountOut
-            let potentialLoss = amountOut.sub(minAmountOut)
-            // if (potentialLoss.isLessThan(0)) {
-            //   potentialLoss = potentialLoss.abs()
-            // }
-            console.log(`TLog: potentialLoss ${i}`, potentialLoss.toString())
-            savedLoss = potentialLoss
-            // savedLoss =
-            //   typeof savedLoss === 'undefined'
-            //     ? potentialLoss
-            //     : potentialLoss.lt(savedLoss)
-            //     ? savedLoss.sub(potentialLoss)
-            //     : potentialLoss.gt(savedLoss)
-            //     ? potentialLoss.sub(savedLoss)
-            //     : savedLoss
-            // savedLoss = typeof savedLoss === 'undefined' ? potentialLoss : potentialLoss.sub(savedLoss)
-            // savedLoss = potentialLoss
+            const minAmountOut = BigNumber.from(trade.minimumAmountOut(allowedSlippage).quotient.toString())
+            // console.log(`TLog: amounts ${i}`, {
+            //   amount1Out: amount1Out.toString(),
+            //   amount0Out: amount0Out.toString(),
+            //   amountOut: amountOut.toString(),
+            //   minAmountOut: minAmountOut.toString(),
+            // })
+
+            savedLoss = amountOut.sub(minAmountOut)
+
             // lastUsedLogIndex = log.logIndex
           }
-          i += 1
         }
 
         let preventedLoss: string | undefined = undefined
-        // console.log('TLog: final savedLoss', savedLoss.toString())
         if (savedLoss !== undefined) {
-          // if (savedLoss.isLessThan(0)) {
-          //   savedLoss = savedLoss.abs()
-          // }
-
-          const decimals = trade.outputAmount.currency.decimals
-
-          // let _loss = formatUnits(savedLoss.div(BigNumber.from(10 ** decimals)), 6)
-          let inputAmountOut = BigNumber.from(amount1)
-          // let _loss = savedLoss.lt(inputAmountOut)
-          //   ? inputAmountOut.sub(savedLoss)
-          //   : savedLoss.gt(actualMinAmountOut)
-          //   ? savedLoss.sub(actualMinAmountOut)
-          //   : savedLoss
-
-          // if (_loss.indexOf('e') > -1) {
-          //   _loss = _loss.substring(0, _loss.indexOf('e'))
-          // }
-
-          preventedLoss = `${formatUnits(savedLoss, decimals)} ${outputTokenSymbol}`
+          preventedLoss = `${formatUnits(savedLoss, 5)} ${outputTokenSymbol}`
         }
 
         return { txHash: result.txnHash, preventedLoss: preventedLoss }
