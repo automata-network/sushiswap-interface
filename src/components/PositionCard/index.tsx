@@ -19,6 +19,7 @@ import { useTokenBalance } from '../../state/wallet/hooks'
 import { useTotalSupply } from '../../hooks/useTotalSupply'
 import { classNames } from '../../functions'
 import { Transition } from '@headlessui/react'
+import { useUserConveyorUseRelay } from '../../state/user/hooks'
 
 interface PositionCardProps {
   pair: Pair
@@ -115,9 +116,10 @@ export default function FullPositionCard({ pair, border, stakedBalance }: Positi
   const { i18n } = useLingui()
   const router = useRouter()
   const { account, chainId } = useActiveWeb3React()
+  const [userConveyorUseRelay] = useUserConveyorUseRelay()
 
-  const currency0 = unwrappedToken(pair.token0)
-  const currency1 = unwrappedToken(pair.token1)
+  const currency0 = !userConveyorUseRelay ? unwrappedToken(pair.token0) : pair.token0
+  const currency1 = !userConveyorUseRelay ? unwrappedToken(pair.token1) : pair.token1
 
   const [showMore, setShowMore] = useState(false)
 
@@ -238,7 +240,11 @@ export default function FullPositionCard({ pair, border, stakedBalance }: Positi
               <Button
                 color="blue"
                 onClick={() => {
-                  router.push(`/add/${pair.liquidityToken.address}`)
+                  router.push(
+                    !userConveyorUseRelay
+                      ? `/add/${pair.liquidityToken.address}`
+                      : `/add/${currencyId(currency0)}/${currencyId(currency1)}`
+                  )
                 }}
               >
                 {i18n._(t`Add`)}

@@ -764,7 +764,7 @@ export default function Remove() {
                     <div className="w-full text-white sm:w-2/5" style={{ margin: 'auto 0px' }}>
                       <AutoColumn>
                         <div>You Will Receive:</div>
-                        {chainId && (oneCurrencyIsWETH || oneCurrencyIsETH) ? (
+                        {chainId && (oneCurrencyIsWETH || oneCurrencyIsETH) && !userConveyorUseRelay ? (
                           <RowBetween className="text-sm">
                             {oneCurrencyIsETH ? (
                               <Link
