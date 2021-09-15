@@ -2615,7 +2615,7 @@
 
 "@sushiswap/sdk@https://github.com/automata-network/sushiswap-sdk.git#conveyor-v2":
   version "5.0.0-canary.52"
-  resolved "https://github.com/automata-network/sushiswap-sdk.git#1ea75319c6a699653bc44a065b991a7930b889c0"
+  resolved "https://github.com/automata-network/sushiswap-sdk.git#7b1e61873b2707b73bdcffee4e697c5ec2fd2633"
   dependencies:
     big.js "^6.1.0"
     decimal.js-light "^2.5.0"
@@ -10125,9 +10125,9 @@ js-yaml@^3.13.1:
     esprima "^4.0.0"
 
 jsbi@^3.1.0:
-  version "3.2.1"
-  resolved "https://registry.yarnpkg.com/jsbi/-/jsbi-3.2.1.tgz#513a8f404abb9d5ba725f5265265b688215ee9f0"
-  integrity sha512-NzcT09wuJReIO829enrY3yRdHFz+ciVIq01PCGPkHlwIv5Dj9v2F4daQ4akwuPHf6xO/oii4Jrd3BsPepOxXrg==
+  version "3.2.4"
+  resolved "https://registry.yarnpkg.com/jsbi/-/jsbi-3.2.4.tgz#aba5b77a14d7f546adc0bd17ab82c07e29f54e91"
+  integrity sha512-iOygwxPzMYli5xrjfd83Vy4Wyu9Ovpw6wWWFy5Kj7XP+pZxPp7Cy72F92iAt2j+6tTDYunvLtC+2tH3xCX37ng==
 
 jsbi@^3.1.5:
   version "3.1.6"
