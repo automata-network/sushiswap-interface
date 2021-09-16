@@ -154,11 +154,11 @@ export default function Add() {
   // check whether the user has approved the router on the tokens
   const [approvalA, approveACallback] = useApproveCallback(
     parsedAmounts[Field.CURRENCY_A],
-    !userConveyorUseRelay ? routerContract?.address : conveyorRouterContract.address
+    !userConveyorUseRelay ? routerContract?.address : conveyorRouterContract?.address
   )
   const [approvalB, approveBCallback] = useApproveCallback(
     parsedAmounts[Field.CURRENCY_B],
-    !userConveyorUseRelay ? routerContract?.address : conveyorRouterContract.address
+    !userConveyorUseRelay ? routerContract?.address : conveyorRouterContract?.address
   )
 
   const addTransaction = useTransactionAdder()
