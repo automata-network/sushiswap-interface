@@ -20,6 +20,7 @@ import {
   TIMELOCK_ADDRESS,
   WNATIVE_ADDRESS,
   Exchanger,
+  CONVEYOR_V2_FACTORY_ADDRESS,
 } from '@sushiswap/sdk'
 import {
   ARGENT_WALLET_DETECTOR_ABI,
@@ -62,6 +63,7 @@ import { getContract } from '../functions/contract'
 import { useActiveWeb3React } from './useActiveWeb3React'
 import { useMemo } from 'react'
 import { useUserConveyorUseRelay } from '../state/user/hooks'
+import useVercelEnvironment from './useNodeEnvironment'
 
 const UNI_FACTORY_ADDRESS = '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f'
 
@@ -156,9 +158,10 @@ export function useMiniChefContract(withSignerIfPossible?: boolean): Contract | 
 export function useFactoryContract(): Contract | null {
   const { chainId } = useActiveWeb3React()
   const [useConveyor] = useUserConveyorUseRelay()
-  const exchanger = !useConveyor ? Exchanger.SUSHI : Exchanger.CONVEYOR
+  const { deploymentEnv } = useVercelEnvironment()
+  const factoryAddress = !useConveyor ? FACTORY_ADDRESS[chainId] : CONVEYOR_V2_FACTORY_ADDRESS[deploymentEnv][chainId]
 
-  return useContract(chainId && FACTORY_ADDRESS[exchanger][chainId], FACTORY_ABI, false)
+  return useContract(chainId && factoryAddress, FACTORY_ABI, false)
 }
 
 export function useRouterContract(useArcher = false, withSignerIfPossible?: boolean): Contract | null {
@@ -234,9 +237,10 @@ export function useZenkoContract(withSignerIfPossible?: boolean): Contract | nul
  */
 export function useConveyorRouterContract(): Contract | null {
   const { chainId } = useActiveWeb3React()
+  const { deploymentEnv } = useVercelEnvironment()
 
   const abi = CONVEYOR_V2_ROUTER_ABI
-  const address = CONVEYOR_V2_ROUTER_ADDRESS[chainId]
+  const address = CONVEYOR_V2_ROUTER_ADDRESS[deploymentEnv][chainId]
 
   return useContract(address, abi)
 }

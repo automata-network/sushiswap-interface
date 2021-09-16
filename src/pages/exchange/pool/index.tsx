@@ -27,6 +27,7 @@ import { useLingui } from '@lingui/react'
 import { useRouter } from 'next/router'
 import { useTokenBalancesWithLoadingIndicator } from '../../../state/wallet/hooks'
 import { useV2Pairs } from '../../../hooks/useV2Pairs'
+import useVercelEnvironment from '../../../hooks/useNodeEnvironment'
 
 export default function Pool() {
   const { i18n } = useLingui()
@@ -37,15 +38,17 @@ export default function Pool() {
 
   const [useConveyor] = useUserConveyorUseRelay()
 
+  const { deploymentEnv } = useVercelEnvironment()
+
   // fetch the user's balances of all tracked V2 LP tokens
   const trackedTokenPairs = useTrackedTokenPairs()
   const tokenPairsWithLiquidityTokens = useMemo(
     () =>
       trackedTokenPairs.map((tokens) => ({
-        liquidityToken: toV2LiquidityToken(tokens, useConveyor),
+        liquidityToken: toV2LiquidityToken(tokens, useConveyor, deploymentEnv),
         tokens,
       })),
-    [trackedTokenPairs, useConveyor]
+    [trackedTokenPairs, useConveyor, deploymentEnv]
   )
   const liquidityTokens = useMemo(
     () => tokenPairsWithLiquidityTokens.map((tpwlt) => tpwlt.liquidityToken),
