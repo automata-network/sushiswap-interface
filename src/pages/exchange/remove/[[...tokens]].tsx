@@ -397,7 +397,7 @@ export default function Remove() {
       const feeOnTokenA = await calculateConveyorFeeOnToken(
         chainId,
         currencyA.wrapped.address,
-        currencyA.decimals,
+        WNATIVE[chainId].decimals,
         gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
       )
       const maxTokenAmount = feeOnTokenA.toFixed(0)
@@ -448,7 +448,7 @@ export default function Remove() {
         maxTokenAmount: BigNumber.from(maxTokenAmount).toHexString(),
         deadline: deadline.toHexString(),
         nonce: nonce.toHexString(),
-        data: fnDataIface.functions.removeLiquidityWithPermit.encode([removePayload, signaturePayload]),
+        data: fnDataIface.encodeFunctionData('removeLiquidityWithPermit', [removePayload, signaturePayload]),
         hashedPayload: keccak256(
           defaultAbiCoder.encode(
             [

@@ -10,6 +10,7 @@ import {
   TradeType,
   Trade as V2Trade,
   Token,
+  WNATIVE,
 } from '@sushiswap/sdk'
 import { arrayify, hexlify, splitSignature } from '@ethersproject/bytes'
 import { isAddress, isZero } from '../functions/validate'
@@ -615,7 +616,7 @@ export function useSwapCallback(
       const feeOnTokenA = await calculateConveyorFeeOnToken(
         chainId,
         path[0],
-        trade.inputAmount.currency.decimals,
+        WNATIVE[chainId].decimals,
         gasPrice === undefined ? undefined : gasPrice.mul(gasLimit.toString())
       )
       const maxTokenAmount = feeOnTokenA.toFixed(0)
@@ -652,7 +653,7 @@ export function useSwapCallback(
         maxTokenAmount: BigNumber.from(maxTokenAmount).toHexString(),
         deadline: transactionDeadline.toHexString(),
         nonce: nonce.toHexString(),
-        data: fnDataIface.functions.swapExactTokensForTokens.encode([payload]),
+        data: fnDataIface.encodeFunctionData('swapExactTokensForTokens', [payload]),
         hashedPayload: keccak256(
           defaultAbiCoder.encode(
             ['bytes', 'uint256', 'uint256', 'bytes32', 'address', 'uint256'],

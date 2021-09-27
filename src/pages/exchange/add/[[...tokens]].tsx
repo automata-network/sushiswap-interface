@@ -1,7 +1,15 @@
 import { ApprovalState, useApproveCallback } from '../../../hooks/useApproveCallback'
 import { AutoRow, RowBetween } from '../../../components/Row'
 import Button, { ButtonError } from '../../../components/Button'
-import { Currency, CurrencyAmount, Percent, WNATIVE, currencyEquals } from '@sushiswap/sdk'
+import {
+  Currency,
+  CurrencyAmount,
+  Percent,
+  WNATIVE,
+  currencyEquals,
+  CONVEYOR_V2_FACTORY_ADDRESS,
+  CONVEYOR_V2_ROUTER_ADDRESS,
+} from '@sushiswap/sdk'
 import { ONE_BIPS, ZERO_PERCENT, CREATE_PAIR_GAS_LIMIT, ADD_LIQUIDITY_GAS_LIMIT } from '../../../constants'
 import React, { useCallback, useEffect, useState } from 'react'
 import TransactionConfirmationModal, { ConfirmationModalContent } from '../../../modals/TransactionConfirmationModal'
@@ -170,7 +178,7 @@ export default function Add() {
   const { deploymentEnv } = useNodeEnvironment()
 
   async function onAdd() {
-    if (!chainId || !library || !account || !routerContract) return
+    if (!chainId || !library || !account || !routerContract || !conveyorRouterContract) return
 
     const { [Field.CURRENCY_A]: parsedAmountA, [Field.CURRENCY_B]: parsedAmountB } = parsedAmounts
 
@@ -255,7 +263,12 @@ export default function Add() {
         })
     } else {
       // Use ConveyorV2 relay for add
+      console.log('account', account)
+      console.log('conveyorRouterContract', conveyorRouterContract)
+      console.log('FACTORY:staging', CONVEYOR_V2_FACTORY_ADDRESS[deploymentEnv][chainId])
+      console.log('ROUTER:staging', CONVEYOR_V2_ROUTER_ADDRESS[deploymentEnv][chainId])
       const nonce: BigNumber = await conveyorRouterContract.nonces(account)
+      console.log('nonce', nonce)
 
       const { [Field.CURRENCY_A]: parsedAmountA, [Field.CURRENCY_B]: parsedAmountB } = parsedAmounts
       if (!parsedAmountA || !parsedAmountB || !currencyA || !currencyB || !deadline) {
@@ -277,7 +290,7 @@ export default function Add() {
       const feeOnTokenA = await calculateConveyorFeeOnToken(
         chainId,
         currencyA.wrapped.address,
-        currencyA.decimals,
+        WNATIVE[chainId].decimals,
         gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
       )
       const maxTokenAmount = feeOnTokenA.toFixed(0)
@@ -318,7 +331,7 @@ export default function Add() {
         maxTokenAmount: BigNumber.from(maxTokenAmount).toHexString(),
         deadline: deadline.toHexString(),
         nonce: nonce.toHexString(),
-        data: fnDataIface.functions.addLiquidity.encode([payload]),
+        data: fnDataIface.encodeFunctionData('addLiquidity', [payload]),
         hashedPayload: keccak256(
           defaultAbiCoder.encode(
             ['bytes', 'address', 'address', 'uint256', 'uint256', 'uint256', 'uint256', 'address', 'uint256'],
