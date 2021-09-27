@@ -29,6 +29,8 @@ import {
   useUserSingleHopOnly,
   useUserSlippageTolerance,
   useUserTransactionTTL,
+  useUserConveyorUseRelay,
+  useUserConveyorGasEstimation,
 } from '../../../state/user/hooks'
 import { useNetworkModalToggle, useToggleSettingsMenu, useWalletModalToggle } from '../../../state/application/hooks'
 import useWrapCallback, { WrapType } from '../../../hooks/useWrapCallback'
@@ -74,6 +76,11 @@ import { useRouter } from 'next/router'
 import { useSwapCallback } from '../../../hooks/useSwapCallback'
 import { useUSDCValue } from '../../../hooks/useUSDCPrice'
 import { warningSeverity } from '../../../functions/prices'
+
+import { CONVEYOR_RELAYER_URI } from '../../../config/conveyor'
+import ConveyorGasFee from '../../../features/trade/ConveyorGasFee'
+import BigNumber from 'bignumber.js'
+import useNodeEnvironment from '../../../hooks/useNodeEnvironment'
 
 export default function Swap() {
   const { i18n } = useLingui()
@@ -127,6 +134,13 @@ export default function Swap() {
   // const doArcher = archerRelay !== undefined && useArcher
   const doArcher = undefined
 
+  const { deploymentEnv } = useNodeEnvironment()
+
+  // Conveyor
+  const [useConveyor] = useUserConveyorUseRelay()
+  const conveyorRelay = chainId ? CONVEYOR_RELAYER_URI[deploymentEnv][chainId] : undefined
+  const doConveyor = typeof conveyorRelay !== 'undefined' && useConveyor
+
   // swap state
   const { independentField, typedValue, recipient } = useSwapState()
   const {
@@ -136,7 +150,7 @@ export default function Swap() {
     currencies,
     inputError: swapInputError,
     allowedSlippage,
-  } = useDerivedSwapInfo(doArcher)
+  } = useDerivedSwapInfo(doArcher, doConveyor)
 
   const {
     wrapType,
@@ -261,6 +275,8 @@ export default function Swap() {
   const maxInputAmount: CurrencyAmount<Currency> | undefined = maxAmountSpend(currencyBalances[Field.INPUT])
   const showMaxButton = Boolean(maxInputAmount?.greaterThan(0) && !parsedAmounts[Field.INPUT]?.equalTo(maxInputAmount))
 
+  const [conveyorPreventedLoss, setConveyorPreventedLoss] = useState<string | undefined>(undefined)
+
   // the callback to execute the swap
   const { callback: swapCallback, error: swapCallbackError } = useSwapCallback(
     trade,
@@ -288,12 +304,18 @@ export default function Swap() {
     })
     swapCallback()
       .then((hash) => {
+        let _hash = typeof hash === 'string' ? hash : hash.txHash
+
+        if (doConveyor && typeof hash === 'object' && 'preventedLoss' in hash) {
+          setConveyorPreventedLoss(hash.preventedLoss)
+        }
+
         setSwapState({
           attemptingTxn: false,
           tradeToConfirm,
-          showConfirm,
+          showConfirm: isExpertMode ? true : showConfirm,
           swapErrorMessage: undefined,
-          txHash: hash,
+          txHash: _hash,
         })
 
         ReactGA.event({
@@ -436,6 +458,23 @@ export default function Swap() {
   //   }
   // }, [chainId, previousChainId, router]);
 
+  // Conveyor gas fee estimation
+  const [conveyorGasEstimation, setConveyorGasEstimation] = useState<string | undefined>(undefined)
+  const [userConveyorGasEstimation] = useUserConveyorGasEstimation()
+  useEffect(() => {
+    ;(() => {
+      if (!doConveyor) return
+      if (userConveyorGasEstimation === '') return
+      if (typeof currencies[Field.INPUT] === 'undefined') return
+
+      const gasEstimation = new BigNumber(userConveyorGasEstimation).div(
+        new BigNumber(10).pow(currencies[Field.INPUT]!.decimals).toString()
+      )
+
+      setConveyorGasEstimation(gasEstimation.toString())
+    })()
+  }, [currencies])
+
   return (
     <Container id="swap-page" className="py-4 md:py-8 lg:py-12">
       <Head>
@@ -472,24 +511,36 @@ export default function Swap() {
             swapErrorMessage={swapErrorMessage}
             onDismiss={handleConfirmDismiss}
             minerBribe={doArcher ? archerETHTip : undefined}
+            preventedLoss={doConveyor ? conveyorPreventedLoss : undefined}
           />
           <div>
-            <CurrencyInputPanel
-              // priceImpact={priceImpact}
-              label={
-                independentField === Field.OUTPUT && !showWrap ? i18n._(t`Swap From (est.):`) : i18n._(t`Swap From:`)
-              }
-              value={formattedAmounts[Field.INPUT]}
-              showMaxButton={showMaxButton}
-              currency={currencies[Field.INPUT]}
-              onUserInput={handleTypeInput}
-              onMax={handleMaxInput}
-              fiatValue={fiatValueInput ?? undefined}
-              onCurrencySelect={handleInputSelect}
-              otherCurrency={currencies[Field.OUTPUT]}
-              showCommonBases={true}
-              id="swap-currency-input"
-            />
+            <div>
+              <CurrencyInputPanel
+                // priceImpact={priceImpact}
+                label={
+                  independentField === Field.OUTPUT && !showWrap ? i18n._(t`Swap From (est.):`) : i18n._(t`Swap From:`)
+                }
+                value={formattedAmounts[Field.INPUT]}
+                showMaxButton={showMaxButton}
+                currency={currencies[Field.INPUT]}
+                onUserInput={handleTypeInput}
+                onMax={handleMaxInput}
+                fiatValue={fiatValueInput ?? undefined}
+                onCurrencySelect={handleInputSelect}
+                otherCurrency={currencies[Field.OUTPUT]}
+                showCommonBases={true}
+                id="swap-currency-input"
+              />
+              {Boolean(trade) && doConveyor && (
+                <div className="p-1 -mt-2 rounded-b-md bg-dark-800">
+                  <ConveyorGasFee
+                    gasFee={conveyorGasEstimation}
+                    inputSymbol={currencies[Field.INPUT].symbol}
+                    className="bg-dark-900"
+                  />
+                </div>
+              )}
+            </div>
             <AutoColumn justify="space-between" className="py-3">
               <div
                 className={classNames(isExpertMode ? 'justify-between' : 'flex-start', 'px-4 flex-wrap w-full flex')}

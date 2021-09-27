@@ -1,4 +1,4 @@
-import { Currency, CurrencyAmount, Ether, JSBI, NATIVE, Token } from '@sushiswap/sdk'
+import { Currency, CurrencyAmount, Ether, JSBI, NATIVE, Token, WNATIVE } from '@sushiswap/sdk'
 import { PairState, useV2Pair } from '../../../hooks/useV2Pairs'
 import React, { useCallback, useEffect, useState } from 'react'
 
@@ -19,7 +19,7 @@ import { currencyId } from '../../../functions/currency'
 import { t } from '@lingui/macro'
 import { useActiveWeb3React } from '../../../hooks/useActiveWeb3React'
 import { useLingui } from '@lingui/react'
-import { usePairAdder } from '../../../state/user/hooks'
+import { usePairAdder, useUserConveyorUseRelay } from '../../../state/user/hooks'
 import { useTokenBalance } from '../../../state/wallet/hooks'
 
 enum Fields {
@@ -33,7 +33,11 @@ export default function PoolFinder() {
 
   const [activeField, setActiveField] = useState<number>(Fields.TOKEN1)
 
-  const [currency0, setCurrency0] = useState<Currency | null>(() => (chainId ? NATIVE[chainId] : null))
+  const [userConveyorUseRelay] = useUserConveyorUseRelay()
+
+  const [currency0, setCurrency0] = useState<Currency | null>(() =>
+    chainId ? (!userConveyorUseRelay ? NATIVE[chainId] : WNATIVE[chainId]) : null
+  )
   const [currency1, setCurrency1] = useState<Currency | null>(null)
 
   const [pairState, pair] = useV2Pair(currency0 ?? undefined, currency1 ?? undefined)

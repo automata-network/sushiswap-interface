@@ -2,7 +2,7 @@ import { AppDispatch, AppState } from '../index'
 import { Currency, CurrencyAmount, JSBI, Pair, Percent, Price, Token } from '@sushiswap/sdk'
 import { Field, typeInput } from './actions'
 import { PairState, useV2Pair } from '../../hooks/useV2Pairs'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 
 import { t } from '@lingui/macro'
@@ -11,6 +11,9 @@ import { useActiveWeb3React } from '../../hooks/useActiveWeb3React'
 import { useCurrencyBalances } from '../wallet/hooks'
 import { useLingui } from '@lingui/react'
 import { useTotalSupply } from '../../hooks/useTotalSupply'
+import { useUserConveyorGasEstimation, useUserConveyorUseRelay, useUserLiquidityGasLimit } from '../user/hooks'
+import { ADD_LIQUIDITY_GAS_LIMIT } from '../../constants'
+import { calculateConveyorFeeOnToken } from '../../functions/conveyorFee'
 
 const ZERO = JSBI.BigInt(0)
 
@@ -72,7 +75,7 @@ export function useDerivedMintInfo(
   error?: string
 } {
   const { i18n } = useLingui()
-  const { account } = useActiveWeb3React()
+  const { account, library, chainId } = useActiveWeb3React()
 
   const { independentField, typedValue, otherTypedValue } = useMintState()
 
@@ -211,6 +214,29 @@ export function useDerivedMintInfo(
   if (currencyBAmount && currencyBalances?.[Field.CURRENCY_B]?.lessThan(currencyBAmount)) {
     error = i18n._(t`Insufficient ${currencies[Field.CURRENCY_B]?.symbol} balance`)
   }
+
+  const [userConveyorUseRelay] = useUserConveyorUseRelay()
+  const [, setUserConveyorGasEstimation] = useUserConveyorGasEstimation()
+  const [userLiquidityGasLimit] = useUserLiquidityGasLimit()
+  useEffect(() => {
+    ;(() => {
+      if (!userConveyorUseRelay) return
+
+      library?.getGasPrice().then((value) => {
+        if (typeof chainId === 'undefined') return
+        if (!currencies.CURRENCY_A || typeof value === 'undefined') return
+
+        calculateConveyorFeeOnToken(
+          chainId,
+          currencies[Field.CURRENCY_A].wrapped.address,
+          currencies[Field.CURRENCY_A].decimals,
+          value.mul(userLiquidityGasLimit)
+        ).then((fee) => {
+          setUserConveyorGasEstimation(fee.toString())
+        })
+      })
+    })()
+  }, [userConveyorUseRelay, chainId, currencies, library, userLiquidityGasLimit, setUserConveyorGasEstimation])
 
   return {
     dependentField,

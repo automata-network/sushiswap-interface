@@ -54,3 +54,14 @@ export const updateUserArcherGasEstimate = createAction<{
 export const updateUserArcherTipManualOverride = createAction<{
   userArcherTipManualOverride: boolean
 }>('user/updateUserArcherTipManualOverride')
+export const updateUserConveyorUseRelay = createAction<{
+  userConveyorUseRelay: boolean
+}>('user/updateUserConveyorUseRelay')
+export const updateUserConveyorGasEstimation = createAction<{ userConveyorGasEstimation: string }>(
+  'user/updateUserConveyorGasEstimation'
+)
+// export const updateUserMaxTokenAmount = createAction<{ userMaxTokenAmount: number }>('user/updateUserMaxTokenAmount')
+export const updateUserSwapGasLimit = createAction<{ userSwapGasLimit: number }>('user/updateUserSwapGasLimit')
+export const updateUserLiquidityGasLimit = createAction<{ userLiquidityGasLimit: number }>(
+  'user/updateUserLiquidityGasLimit'
+)

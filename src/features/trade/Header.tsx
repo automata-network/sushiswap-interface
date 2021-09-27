@@ -10,6 +10,9 @@ import { t } from '@lingui/macro'
 import { useActiveWeb3React } from '../../hooks'
 import { useLingui } from '@lingui/react'
 import { useRouter } from 'next/router'
+import { useUserConveyorUseRelay } from '../../state/user/hooks'
+import Image from 'next/image'
+import QuestionHelper from '../../components/QuestionHelper'
 
 const getQuery = (input, output) => {
   if (!input && !output) return
@@ -34,6 +37,7 @@ const ExchangeHeader: FC<ExchangeHeaderProps> = ({ input, output, allowedSlippag
   const [animateWallet, setAnimateWallet] = useState(false)
   const isRemove = router.asPath.startsWith('/remove')
   const isLimitOrder = router.asPath.startsWith('/limit-order')
+  const [userConveyorUseRelay] = useUserConveyorUseRelay()
 
   return (
     <div className="flex items-center justify-between mb-4 space-x-3">
@@ -78,6 +82,7 @@ const ExchangeHeader: FC<ExchangeHeaderProps> = ({ input, output, allowedSlippag
               <MyOrders />
             </div>
           )}
+
           {chainId === ChainId.MAINNET && (
             <div className="items-center hidden w-full h-full px-3 space-x-3 rounded cursor-pointer text-green text-opacity-80 hover:text-opacity-100 md:flex hover:bg-dark-800">
               <svg width="18" height="20" viewBox="0 0 18 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -92,6 +97,15 @@ const ExchangeHeader: FC<ExchangeHeaderProps> = ({ input, output, allowedSlippag
               </div>
             </div>
           )}
+
+          {userConveyorUseRelay && (
+            <div className="relative flex items-center w-full h-full" style={{ paddingTop: '2px' }}>
+              <QuestionHelper text={i18n._(t`Transactions will be protected by Automata Conveyor from potential MEV`)}>
+                <Image src="/automata-logo.svg" alt="Automata" width={20} height={20} />
+              </QuestionHelper>
+            </div>
+          )}
+
           <div className="relative flex items-center w-full h-full rounded hover:bg-dark-800">
             <Settings placeholderSlippage={allowedSlippage} />
           </div>

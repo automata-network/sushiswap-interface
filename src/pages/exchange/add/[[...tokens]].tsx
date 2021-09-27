@@ -1,14 +1,29 @@
 import { ApprovalState, useApproveCallback } from '../../../hooks/useApproveCallback'
 import { AutoRow, RowBetween } from '../../../components/Row'
 import Button, { ButtonError } from '../../../components/Button'
-import { Currency, CurrencyAmount, Percent, WNATIVE, currencyEquals } from '@sushiswap/sdk'
-import { ONE_BIPS, ZERO_PERCENT } from '../../../constants'
-import React, { useCallback, useState } from 'react'
+import {
+  Currency,
+  CurrencyAmount,
+  Percent,
+  WNATIVE,
+  currencyEquals,
+  CONVEYOR_V2_FACTORY_ADDRESS,
+  CONVEYOR_V2_ROUTER_ADDRESS,
+} from '@sushiswap/sdk'
+import { ONE_BIPS, ZERO_PERCENT, CREATE_PAIR_GAS_LIMIT, ADD_LIQUIDITY_GAS_LIMIT } from '../../../constants'
+import React, { useCallback, useEffect, useState } from 'react'
 import TransactionConfirmationModal, { ConfirmationModalContent } from '../../../modals/TransactionConfirmationModal'
 import { calculateGasMargin, calculateSlippageAmount } from '../../../functions/trade'
 import { currencyId, maxAmountSpend } from '../../../functions/currency'
 import { useDerivedMintInfo, useMintActionHandlers, useMintState } from '../../../state/mint/hooks'
-import { useExpertModeManager, useUserSlippageToleranceWithDefault } from '../../../state/user/hooks'
+import {
+  useExpertModeManager,
+  useUserConveyorGasEstimation,
+  useUserConveyorUseRelay,
+  useUserLiquidityGasLimit,
+  // useUserMaxTokenAmount,
+  useUserSlippageToleranceWithDefault,
+} from '../../../state/user/hooks'
 
 import Alert from '../../../components/Alert'
 import { AutoColumn } from '../../../components/Column'
@@ -40,10 +55,21 @@ import { useCurrency } from '../../../hooks/Tokens'
 import { useIsSwapUnsupported } from '../../../hooks/useIsSwapUnsupported'
 import { useLingui } from '@lingui/react'
 import { useRouter } from 'next/router'
-import { useRouterContract } from '../../../hooks'
+import { useConveyorRouterContract, useRouterContract } from '../../../hooks'
 import { useTransactionAdder } from '../../../state/transactions/hooks'
 import useTransactionDeadline from '../../../hooks/useTransactionDeadline'
 import { useWalletModalToggle } from '../../../state/application/hooks'
+import { EIP712_DOMAIN_TYPE, FORWARDER_TYPE } from '../../../constants/abis/conveyor-v2'
+import { calculateConveyorFeeOnToken } from '../../../functions/conveyorFee'
+import { splitSignature } from '@ethersproject/bytes'
+import { CONVEYOR_RELAYER_URI } from '../../../config/conveyor'
+import ConveyorGasFee from '../../../features/trade/ConveyorGasFee'
+import { BigNumber as JSBigNumber } from 'bignumber.js'
+import { utils } from 'ethers'
+import { toRawAmount } from '../../../functions/conveyor/helpers'
+import useNodeEnvironment from '../../../hooks/useNodeEnvironment'
+
+const { keccak256, defaultAbiCoder, toUtf8Bytes, Interface } = utils
 
 const DEFAULT_ADD_V2_SLIPPAGE_TOLERANCE = new Percent(50, 10_000)
 
@@ -127,20 +153,36 @@ export default function Add() {
     {}
   )
 
+  const [userConveyorUseRelay] = useUserConveyorUseRelay()
+
   const routerContract = useRouterContract()
 
+  const conveyorRouterContract = useConveyorRouterContract()
+
   // check whether the user has approved the router on the tokens
-  const [approvalA, approveACallback] = useApproveCallback(parsedAmounts[Field.CURRENCY_A], routerContract?.address)
-  const [approvalB, approveBCallback] = useApproveCallback(parsedAmounts[Field.CURRENCY_B], routerContract?.address)
+  const [approvalA, approveACallback] = useApproveCallback(
+    parsedAmounts[Field.CURRENCY_A],
+    !userConveyorUseRelay ? routerContract?.address : conveyorRouterContract?.address
+  )
+  const [approvalB, approveBCallback] = useApproveCallback(
+    parsedAmounts[Field.CURRENCY_B],
+    !userConveyorUseRelay ? routerContract?.address : conveyorRouterContract?.address
+  )
 
   const addTransaction = useTransactionAdder()
 
+  // const [userMaxTokenAmount] = useUserMaxTokenAmount()
+
+  const [userLiquidityGasLimit] = useUserLiquidityGasLimit()
+
+  const { deploymentEnv } = useNodeEnvironment()
+
   async function onAdd() {
-    if (!chainId || !library || !account || !routerContract) return
+    if (!chainId || !library || !account || !routerContract || !conveyorRouterContract) return
 
     const { [Field.CURRENCY_A]: parsedAmountA, [Field.CURRENCY_B]: parsedAmountB } = parsedAmounts
 
-    console.log({ parsedAmountA, parsedAmountB, currencyA, currencyB, deadline })
+    // console.log({ parsedAmountA, parsedAmountB, currencyA, currencyB, deadline })
 
     if (!parsedAmountA || !parsedAmountB || !currencyA || !currencyB || !deadline) {
       return
@@ -151,72 +193,232 @@ export default function Add() {
       [Field.CURRENCY_B]: calculateSlippageAmount(parsedAmountB, noLiquidity ? ZERO_PERCENT : allowedSlippage)[0],
     }
 
-    let estimate,
-      method: (...args: any) => Promise<TransactionResponse>,
-      args: Array<string | string[] | number>,
-      value: BigNumber | null
-    if (currencyA.isNative || currencyB.isNative) {
-      const tokenBIsETH = currencyB.isNative
-      estimate = routerContract.estimateGas.addLiquidityETH
-      method = routerContract.addLiquidityETH
-      args = [
-        (tokenBIsETH ? currencyA : currencyB)?.wrapped?.address ?? '', // token
-        (tokenBIsETH ? parsedAmountA : parsedAmountB).quotient.toString(), // token desired
-        amountsMin[tokenBIsETH ? Field.CURRENCY_A : Field.CURRENCY_B].toString(), // token min
-        amountsMin[tokenBIsETH ? Field.CURRENCY_B : Field.CURRENCY_A].toString(), // eth min
-        account,
-        deadline.toHexString(),
-      ]
-      value = BigNumber.from((tokenBIsETH ? parsedAmountB : parsedAmountA).quotient.toString())
-    } else {
-      estimate = routerContract.estimateGas.addLiquidity
-      method = routerContract.addLiquidity
-      args = [
-        currencyA?.wrapped?.address ?? '',
-        currencyB?.wrapped?.address ?? '',
-        parsedAmountA.quotient.toString(),
-        parsedAmountB.quotient.toString(),
-        amountsMin[Field.CURRENCY_A].toString(),
-        amountsMin[Field.CURRENCY_B].toString(),
-        account,
-        deadline.toHexString(),
-      ]
-      value = null
-    }
+    if (!userConveyorUseRelay) {
+      // Sushiswap's default add
+      let estimate,
+        method: (...args: any) => Promise<TransactionResponse>,
+        args: Array<string | string[] | number>,
+        value: BigNumber | null
+      if (currencyA.isNative || currencyB.isNative) {
+        const tokenBIsETH = currencyB.isNative
+        estimate = routerContract.estimateGas.addLiquidityETH
+        method = routerContract.addLiquidityETH
+        args = [
+          (tokenBIsETH ? currencyA : currencyB)?.wrapped?.address ?? '', // token
+          (tokenBIsETH ? parsedAmountA : parsedAmountB).quotient.toString(), // token desired
+          amountsMin[tokenBIsETH ? Field.CURRENCY_A : Field.CURRENCY_B].toString(), // token min
+          amountsMin[tokenBIsETH ? Field.CURRENCY_B : Field.CURRENCY_A].toString(), // eth min
+          account,
+          deadline.toHexString(),
+        ]
+        value = BigNumber.from((tokenBIsETH ? parsedAmountB : parsedAmountA).quotient.toString())
+      } else {
+        estimate = routerContract.estimateGas.addLiquidity
+        method = routerContract.addLiquidity
+        args = [
+          currencyA?.wrapped?.address ?? '',
+          currencyB?.wrapped?.address ?? '',
+          parsedAmountA.quotient.toString(),
+          parsedAmountB.quotient.toString(),
+          amountsMin[Field.CURRENCY_A].toString(),
+          amountsMin[Field.CURRENCY_B].toString(),
+          account,
+          deadline.toHexString(),
+        ]
+        value = null
+      }
 
-    setAttemptingTxn(true)
-    await estimate(...args, value ? { value } : {})
-      .then((estimatedGasLimit) =>
-        method(...args, {
-          ...(value ? { value } : {}),
-          gasLimit: calculateGasMargin(estimatedGasLimit),
-        }).then((response) => {
+      setAttemptingTxn(true)
+      await estimate(...args, value ? { value } : {})
+        .then((estimatedGasLimit) =>
+          method(...args, {
+            ...(value ? { value } : {}),
+            gasLimit: calculateGasMargin(estimatedGasLimit),
+          }).then((response) => {
+            setAttemptingTxn(false)
+
+            addTransaction(response, {
+              summary: i18n._(
+                t`Add ${parsedAmounts[Field.CURRENCY_A]?.toSignificant(3)} ${
+                  currencies[Field.CURRENCY_A]?.symbol
+                } and ${parsedAmounts[Field.CURRENCY_B]?.toSignificant(3)} ${currencies[Field.CURRENCY_B]?.symbol}`
+              ),
+            })
+
+            setTxHash(response.hash)
+
+            ReactGA.event({
+              category: 'Liquidity',
+              action: 'Add',
+              label: [currencies[Field.CURRENCY_A]?.symbol, currencies[Field.CURRENCY_B]?.symbol].join('/'),
+            })
+          })
+        )
+        .catch((error) => {
+          setAttemptingTxn(false)
+          // we only care if the error is something _other_ than the user rejected the tx
+          if (error?.code !== 4001) {
+            console.error(error)
+          }
+        })
+    } else {
+      // Use ConveyorV2 relay for add
+      console.log('account', account)
+      console.log('conveyorRouterContract', conveyorRouterContract)
+      console.log('FACTORY:staging', CONVEYOR_V2_FACTORY_ADDRESS[deploymentEnv][chainId])
+      console.log('ROUTER:staging', CONVEYOR_V2_ROUTER_ADDRESS[deploymentEnv][chainId])
+      const nonce: BigNumber = await conveyorRouterContract.nonces(account)
+      console.log('nonce', nonce)
+
+      const { [Field.CURRENCY_A]: parsedAmountA, [Field.CURRENCY_B]: parsedAmountB } = parsedAmounts
+      if (!parsedAmountA || !parsedAmountB || !currencyA || !currencyB || !deadline) {
+        return
+      }
+
+      const amountADesired = toRawAmount(parsedAmountA)
+      const amountBDesired = toRawAmount(parsedAmountB)
+      const amountAMin = amountsMin[Field.CURRENCY_A].toString()
+      const amountBMin = amountsMin[Field.CURRENCY_B].toString()
+
+      const gasPrice = await library?.getGasPrice()
+      const userGasLimit = isExpertMode
+        ? userLiquidityGasLimit
+        : pairState === PairState.NOT_EXISTS
+        ? CREATE_PAIR_GAS_LIMIT
+        : ADD_LIQUIDITY_GAS_LIMIT
+      const gasLimit = BigNumber.from(userGasLimit)
+      const feeOnTokenA = await calculateConveyorFeeOnToken(
+        chainId,
+        currencyA.wrapped.address,
+        WNATIVE[chainId].decimals,
+        gasPrice === undefined ? undefined : gasPrice.mul(gasLimit)
+      )
+      const maxTokenAmount = feeOnTokenA.toFixed(0)
+
+      console.table({
+        inputAmountA: amountADesired,
+        baseGasPrice: gasPrice.toString(),
+        gasLimit: gasLimit.toString(),
+        maxTokenAmount: maxTokenAmount,
+      })
+
+      const domain = {
+        name: 'ConveyorV2',
+        version: '1',
+        chainId: BigNumber.from(chainId).toHexString(),
+        verifyingContract: conveyorRouterContract.address,
+      }
+
+      const payload = {
+        tokenA: currencyA.wrapped.address,
+        tokenB: currencyB.wrapped.address,
+        amountADesired: BigNumber.from(amountADesired).toHexString(),
+        amountBDesired: BigNumber.from(amountBDesired).toHexString(),
+        amountAMin: BigNumber.from(amountAMin).toHexString(),
+        amountBMin: BigNumber.from(amountBMin).toHexString(),
+        user: account,
+        deadline: deadline.toHexString(),
+      }
+
+      const fnParam =
+        'tuple(address tokenA,address tokenB,uint256 amountADesired,uint256 amountBDesired,uint256 amountAMin,uint256 amountBMin,address user,uint256 deadline)'
+      const fnData = [`function addLiquidity(${fnParam})`]
+      const fnDataIface = new Interface(fnData)
+
+      const message = {
+        from: account,
+        feeToken: currencyA.wrapped.address,
+        maxTokenAmount: BigNumber.from(maxTokenAmount).toHexString(),
+        deadline: deadline.toHexString(),
+        nonce: nonce.toHexString(),
+        data: fnDataIface.encodeFunctionData('addLiquidity', [payload]),
+        hashedPayload: keccak256(
+          defaultAbiCoder.encode(
+            ['bytes', 'address', 'address', 'uint256', 'uint256', 'uint256', 'uint256', 'address', 'uint256'],
+            [
+              keccak256(
+                toUtf8Bytes(
+                  'addLiquidity(address tokenA,address tokenB,uint256 amountADesired,uint256 amountBDesired,uint256 amountAMin,uint256 amountBMin,address user,uint256 deadline)'
+                )
+              ),
+              ...Object.entries(payload).map(([_, value]) => value),
+            ]
+          )
+        ),
+      }
+      console.log('message', message)
+
+      const EIP712Msg = {
+        types: {
+          EIP712Domain: EIP712_DOMAIN_TYPE,
+          Forwarder: FORWARDER_TYPE,
+          // AddLiquidity,
+        },
+        domain,
+        primaryType: 'Forwarder',
+        message,
+      }
+
+      const data = JSON.stringify(EIP712Msg)
+      setAttemptingTxn(true)
+      library
+        .send('eth_signTypedData_v4', [account, data])
+        .then(async (signature) => {
+          const { v, r, s } = splitSignature(signature)
+
+          const params = [chainId, EIP712Msg, v.toString(), r, s]
+
+          const jsonrpcRequest = {
+            jsonrpc: '2.0',
+            method: '/v2/metaTx/addLiquidity',
+            id: 1,
+            params,
+          }
+
+          const requestOptions = {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(jsonrpcRequest),
+          }
+
+          const jsonrpcResponse = await fetch(CONVEYOR_RELAYER_URI[deploymentEnv][chainId]!, requestOptions)
+          const { result: response } = await jsonrpcResponse.json()
+
           setAttemptingTxn(false)
 
-          addTransaction(response, {
-            summary: i18n._(
-              t`Add ${parsedAmounts[Field.CURRENCY_A]?.toSignificant(3)} ${
-                currencies[Field.CURRENCY_A]?.symbol
-              } and ${parsedAmounts[Field.CURRENCY_B]?.toSignificant(3)} ${currencies[Field.CURRENCY_B]?.symbol}`
-            ),
-          })
+          if (response.success === true) {
+            addTransaction(
+              { hash: response.txnHash },
+              {
+                summary:
+                  'Add ' +
+                  parsedAmounts[Field.CURRENCY_A]?.toSignificant(3) +
+                  ' ' +
+                  currencies[Field.CURRENCY_A]?.symbol +
+                  ' and ' +
+                  parsedAmounts[Field.CURRENCY_B]?.toSignificant(3) +
+                  ' ' +
+                  currencies[Field.CURRENCY_B]?.symbol,
+              }
+            )
 
-          setTxHash(response.hash)
-
-          ReactGA.event({
-            category: 'Liquidity',
-            action: 'Add',
-            label: [currencies[Field.CURRENCY_A]?.symbol, currencies[Field.CURRENCY_B]?.symbol].join('/'),
-          })
+            setTxHash(response.txnHash)
+            if (isExpertMode) {
+              setShowConfirm(true)
+            }
+          } else {
+            throw new Error(response.errorMessage)
+          }
         })
-      )
-      .catch((error) => {
-        setAttemptingTxn(false)
-        // we only care if the error is something _other_ than the user rejected the tx
-        if (error?.code !== 4001) {
-          console.error(error)
-        }
-      })
+        .catch((error) => {
+          setAttemptingTxn(false)
+          if (error?.code !== 4001) {
+            console.error(error)
+          }
+        })
+    }
   }
 
   const modalHeader = () => {
@@ -312,6 +514,24 @@ export default function Add() {
   //   { addIsUnsupported, isValid, approvalA, approvalB },
   //   approvalA === ApprovalState.APPROVED && approvalB === ApprovalState.APPROVED
   // )
+
+  // Conveyor gas fee estimation
+  const [conveyorGasEstimation, setConveyorGasEstimation] = useState<string | undefined>(undefined)
+  const [userConveyorGasEstimation] = useUserConveyorGasEstimation()
+  useEffect(() => {
+    ;(() => {
+      if (!userConveyorUseRelay) return
+      if (userConveyorGasEstimation === '') return
+      if (typeof currencyA === 'undefined' || currencyA === null) return
+
+      const gasEstimation = new JSBigNumber(userConveyorGasEstimation).div(
+        new JSBigNumber(10).pow(currencyA!.decimals).toString()
+      )
+
+      setConveyorGasEstimation(gasEstimation.toString())
+    })()
+  }, [userConveyorUseRelay, currencyA, userConveyorGasEstimation])
+
   return (
     <>
       <Head>
@@ -403,18 +623,32 @@ export default function Add() {
               )}
 
               <div>
-                <CurrencyInputPanel
-                  value={formattedAmounts[Field.CURRENCY_A]}
-                  onUserInput={onFieldAInput}
-                  onMax={() => {
-                    onFieldAInput(maxAmounts[Field.CURRENCY_A]?.toExact() ?? '')
-                  }}
-                  onCurrencySelect={handleCurrencyASelect}
-                  showMaxButton={!atMaxAmounts[Field.CURRENCY_A]}
-                  currency={currencies[Field.CURRENCY_A]}
-                  id="add-liquidity-input-tokena"
-                  showCommonBases
-                />
+                <div>
+                  <CurrencyInputPanel
+                    value={formattedAmounts[Field.CURRENCY_A]}
+                    onUserInput={onFieldAInput}
+                    onMax={() => {
+                      onFieldAInput(maxAmounts[Field.CURRENCY_A]?.toExact() ?? '')
+                    }}
+                    onCurrencySelect={handleCurrencyASelect}
+                    showMaxButton={!atMaxAmounts[Field.CURRENCY_A]}
+                    currency={currencies[Field.CURRENCY_A]}
+                    id="add-liquidity-input-tokena"
+                    showCommonBases
+                  />
+                  {currencies[Field.CURRENCY_A] &&
+                    currencies[Field.CURRENCY_B] &&
+                    pairState !== PairState.INVALID &&
+                    userConveyorUseRelay && (
+                      <div className="p-1 -mt-2 rounded-b-md bg-dark-800">
+                        <ConveyorGasFee
+                          gasFee={conveyorGasEstimation}
+                          inputSymbol={currencyA.symbol}
+                          className="bg-dark-900"
+                        />
+                      </div>
+                    )}
+                </div>
 
                 <AutoColumn justify="space-between" className="py-2.5">
                   <AutoRow justify={isExpertMode ? 'space-between' : 'flex-start'} style={{ padding: '0 1rem' }}>

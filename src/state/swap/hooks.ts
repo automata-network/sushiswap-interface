@@ -33,8 +33,11 @@ import {
   useUserArcherGasEstimate,
   useUserArcherGasPrice,
   useUserArcherTipManualOverride,
+  useUserConveyorGasEstimation,
+  useUserConveyorUseRelay,
   useUserSingleHopOnly,
   useUserSlippageTolerance,
+  useUserSwapGasLimit,
 } from '../user/hooks'
 import { useV2TradeExactIn as useTradeExactIn, useV2TradeExactOut as useTradeExactOut } from '../../hooks/useV2Trades'
 
@@ -49,6 +52,8 @@ import useENS from '../../hooks/useENS'
 import { useLingui } from '@lingui/react'
 import useParsedQueryString from '../../hooks/useParsedQueryString'
 import useSwapSlippageTolerance from '../../hooks/useSwapSlippageTollerence'
+import { calculateConveyorFeeOnToken } from '../../functions/conveyorFee'
+import { HOP_ADDITIONAL_GAS } from '../../constants'
 
 export function useSwapState(): AppState['swap'] {
   return useAppSelector((state) => state.swap)
@@ -127,7 +132,10 @@ function involvesAddress(trade: V2Trade<Currency, Currency, TradeType>, checksum
 }
 
 // from the current swap inputs, compute the best trade and return it.
-export function useDerivedSwapInfo(doArcher = false): {
+export function useDerivedSwapInfo(
+  doArcher = false,
+  doConveyor = false
+): {
   currencies: { [field in Field]?: Currency }
   currencyBalances: { [field in Field]?: CurrencyAmount<Currency> }
   parsedAmount: CurrencyAmount<Currency> | undefined
@@ -226,6 +234,39 @@ export function useDerivedSwapInfo(doArcher = false): {
   const [userGasEstimate, setUserGasEstimate] = useUserArcherGasEstimate()
   const [userGasPrice] = useUserArcherGasPrice()
   const [userTipManualOverride, setUserTipManualOverride] = useUserArcherTipManualOverride()
+
+  const [, setUserConveyorGasEstimation] = useUserConveyorGasEstimation()
+  const [swapGasLimit] = useUserSwapGasLimit()
+
+  //   Set all Conveyor-specific steps here
+  if (doConveyor) {
+    //
+  }
+
+  // Calculate gas fee estimation when user use Conveyor v2 relay to swap
+  useEffect(() => {
+    ;(() => {
+      if (!doConveyor) return
+
+      library?.getGasPrice().then((value) => {
+        if (typeof chainId === 'undefined') return
+        if (typeof v2Trade === 'undefined' || v2Trade === null) return
+        if (typeof inputCurrencyId === 'undefined') return
+        if (typeof currencies[Field.INPUT] === 'undefined') return
+        if (typeof value === 'undefined') return
+
+        const gasLimit = swapGasLimit + (v2Trade.route.path.length - 2) * HOP_ADDITIONAL_GAS
+        calculateConveyorFeeOnToken(
+          chainId,
+          inputCurrencyId,
+          currencies[Field.INPUT]!.decimals,
+          value.mul(gasLimit)
+        ).then((fee) => {
+          setUserConveyorGasEstimation(fee.toString())
+        })
+      })
+    })()
+  }, [doConveyor, v2Trade, chainId, currencies, inputCurrencyId, library, swapGasLimit, setUserConveyorGasEstimation])
 
   useEffect(() => {
     if (doArcher) {
@@ -340,10 +381,14 @@ function validatedRecipient(recipient: any): string | null {
   if (ADDRESS_REGEX.test(recipient)) return recipient
   return null
 }
-export function queryParametersToSwapState(parsedQs: ParsedQs, chainId: ChainId = ChainId.MAINNET): SwapState {
+export function queryParametersToSwapState(
+  parsedQs: ParsedQs,
+  chainId: ChainId = ChainId.MAINNET,
+  doConveyor: boolean = false
+): SwapState {
   let inputCurrency = parseCurrencyFromURLParameter(parsedQs.inputCurrency)
   let outputCurrency = parseCurrencyFromURLParameter(parsedQs.outputCurrency)
-  const eth = chainId === ChainId.CELO ? WNATIVE_ADDRESS[chainId] : 'ETH'
+  const eth = chainId === ChainId.CELO || doConveyor ? WNATIVE_ADDRESS[chainId] : 'ETH'
   const sushi = SUSHI_ADDRESS[chainId]
   if (inputCurrency === '' && outputCurrency === '') {
     inputCurrency = eth
@@ -387,10 +432,11 @@ export function useDefaultsFromURLSearch():
       }
     | undefined
   >()
+  const [userConveyorUseRelay] = useUserConveyorUseRelay()
 
   useEffect(() => {
     if (!chainId) return
-    const parsed = queryParametersToSwapState(parsedQs, chainId)
+    const parsed = queryParametersToSwapState(parsedQs, chainId, userConveyorUseRelay)
 
     dispatch(
       replaceSwapState({

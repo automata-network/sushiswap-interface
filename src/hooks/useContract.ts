@@ -19,11 +19,14 @@ import {
   SUSHI_ADDRESS,
   TIMELOCK_ADDRESS,
   WNATIVE_ADDRESS,
+  Exchanger,
+  CONVEYOR_V2_FACTORY_ADDRESS,
 } from '@sushiswap/sdk'
 import {
   ARGENT_WALLET_DETECTOR_ABI,
   ARGENT_WALLET_DETECTOR_MAINNET_ADDRESS,
 } from '../constants/abis/argent-wallet-detector'
+import { CONVEYOR_V2_ROUTER_ABI, CONVEYOR_V2_ROUTER_ADDRESS } from '../constants/abis/conveyor-v2'
 
 import ARCHER_ROUTER_ABI from '../constants/abis/archer-router.json'
 import BAR_ABI from '../constants/abis/bar.json'
@@ -59,6 +62,8 @@ import ZENKO_ABI from '../constants/abis/zenko.json'
 import { getContract } from '../functions/contract'
 import { useActiveWeb3React } from './useActiveWeb3React'
 import { useMemo } from 'react'
+import { useUserConveyorUseRelay } from '../state/user/hooks'
+import useVercelEnvironment from './useNodeEnvironment'
 
 const UNI_FACTORY_ADDRESS = '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f'
 
@@ -152,7 +157,11 @@ export function useMiniChefContract(withSignerIfPossible?: boolean): Contract | 
 
 export function useFactoryContract(): Contract | null {
   const { chainId } = useActiveWeb3React()
-  return useContract(chainId && FACTORY_ADDRESS[chainId], FACTORY_ABI, false)
+  const [useConveyor] = useUserConveyorUseRelay()
+  const { deploymentEnv } = useVercelEnvironment()
+  const factoryAddress = !useConveyor ? FACTORY_ADDRESS[chainId] : CONVEYOR_V2_FACTORY_ADDRESS[deploymentEnv][chainId]
+
+  return useContract(chainId && factoryAddress, FACTORY_ABI, false)
 }
 
 export function useRouterContract(useArcher = false, withSignerIfPossible?: boolean): Contract | null {
@@ -219,4 +228,19 @@ export function useInariContract(withSignerIfPossible?: boolean): Contract | nul
 
 export function useZenkoContract(withSignerIfPossible?: boolean): Contract | null {
   return useContract('0xa8f676c49f91655ab3b7c3ea2b73bb3088b2bc1f', ZENKO_ABI, withSignerIfPossible)
+}
+
+/**
+ * Interact with Automata Conveyor v2 router contract
+ * @see `useRouterContract`
+ * @returns Contract. Null if the contract is not match.
+ */
+export function useConveyorRouterContract(): Contract | null {
+  const { chainId } = useActiveWeb3React()
+  const { deploymentEnv } = useVercelEnvironment()
+
+  const abi = CONVEYOR_V2_ROUTER_ABI
+  const address = CONVEYOR_V2_ROUTER_ADDRESS[deploymentEnv][chainId]
+
+  return useContract(address, abi)
 }

@@ -1,6 +1,18 @@
 import { AppDispatch, AppState } from '..'
 import { BASES_TO_TRACK_LIQUIDITY_FOR, PINNED_PAIRS } from '../../config/routing'
-import { ChainId, FACTORY_ADDRESS, JSBI, Pair, Percent, Token, computePairAddress } from '@sushiswap/sdk'
+import {
+  ChainId,
+  FACTORY_ADDRESS,
+  JSBI,
+  Pair,
+  Percent,
+  Token,
+  computePairAddress,
+  Exchanger,
+  TokenType,
+  LIQUIDITY_TOKEN_IDENTITY,
+  CONVEYOR_V2_FACTORY_ADDRESS,
+} from '@sushiswap/sdk'
 import {
   SerializedPair,
   SerializedToken,
@@ -18,6 +30,11 @@ import {
   updateUserExpertMode,
   updateUserSingleHopOnly,
   updateUserSlippageTolerance,
+  updateUserConveyorUseRelay,
+  updateUserConveyorGasEstimation,
+  // updateUserMaxTokenAmount,
+  updateUserSwapGasLimit,
+  updateUserLiquidityGasLimit,
 } from './actions'
 import { shallowEqual, useDispatch, useSelector } from 'react-redux'
 import { useAppDispatch, useAppSelector } from '../hooks'
@@ -218,18 +235,32 @@ export function useURLWarningToggle(): () => void {
  * Given two tokens return the liquidity token that represents its liquidity shares
  * @param tokenA one of the two tokens
  * @param tokenB the other token
+ * @param isConveyorPair wether we should return liquidity pair in Sushi or Conveyor pool
  */
-export function toV2LiquidityToken([tokenA, tokenB]: [Token, Token]): Token {
+export function toV2LiquidityToken(
+  [tokenA, tokenB]: [Token, Token],
+  isConveyorPair: boolean = false,
+  deploymentEnv: string
+): Token {
   if (tokenA.chainId !== tokenB.chainId) throw new Error('Not matching chain IDs')
   if (tokenA.equals(tokenB)) throw new Error('Tokens cannot be equal')
-  if (!FACTORY_ADDRESS[tokenA.chainId]) throw new Error('No V2 factory address on this chain')
+
+  const factoryAddress = !isConveyorPair
+    ? FACTORY_ADDRESS[tokenA.chainId]
+    : CONVEYOR_V2_FACTORY_ADDRESS[deploymentEnv][tokenA.chainId]
+  if (!factoryAddress) throw new Error('No V2 factory address on this chain')
+
+  const tokenType = !isConveyorPair ? TokenType.UNISWAP : TokenType.CONVEYOR
+  const [tokenSymbol, tokenName] = LIQUIDITY_TOKEN_IDENTITY[tokenType]
 
   return new Token(
     tokenA.chainId,
-    computePairAddress({ factoryAddress: FACTORY_ADDRESS[tokenA.chainId], tokenA, tokenB }),
+    computePairAddress({ factoryAddress, tokenA, tokenB, isConveyorPair }),
     18,
-    'UNI-V2',
-    'Uniswap V2'
+    // 'UNI-V2',
+    // 'Uniswap V2'
+    tokenSymbol,
+    tokenName
   )
 }
 
@@ -399,4 +430,87 @@ export function useUserSlippageToleranceWithDefault(defaultSlippageTolerance: Pe
     () => (allowedSlippage === 'auto' ? defaultSlippageTolerance : allowedSlippage),
     [allowedSlippage, defaultSlippageTolerance]
   )
+}
+
+export function useUserConveyorUseRelay(): [boolean, (newUseRelay: boolean) => void] {
+  const dispatch = useAppDispatch()
+
+  const useRelay = useSelector<AppState, AppState['user']['userConveyorUseRelay']>(
+    (state) => state.user.userConveyorUseRelay
+  )
+
+  const setUseRelay = useCallback(
+    (newUseRelay: boolean) => {
+      dispatch(updateUserConveyorUseRelay({ userConveyorUseRelay: newUseRelay }))
+    },
+    [dispatch]
+  )
+
+  return [useRelay, setUseRelay]
+}
+
+export function useUserConveyorGasEstimation(): [string, (gasFee: string) => void] {
+  const dispatch = useAppDispatch()
+
+  const userConveyorGasEstimation = useSelector<AppState, AppState['user']['userConveyorGasEstimation']>(
+    (state) => state.user.userConveyorGasEstimation
+  )
+
+  const setUserConveyorGasEstimation = useCallback(
+    (gasFee: string) => {
+      dispatch(updateUserConveyorGasEstimation({ userConveyorGasEstimation: gasFee }))
+    },
+    [dispatch]
+  )
+
+  return [userConveyorGasEstimation, setUserConveyorGasEstimation]
+}
+
+// export function useUserMaxTokenAmount(): [number, (tokenAmount: number) => void] {
+//   const dispatch = useAppDispatch()
+
+//   const userMaxTokenAmount = useSelector<AppState, AppState['user']['userMaxTokenAmount']>(
+//     (state) => state.user.userMaxTokenAmount
+//   )
+
+//   const setUserMaxTokenAmount = useCallback(
+//     (tokenAmount: number) => {
+//       dispatch(updateUserMaxTokenAmount({ userMaxTokenAmount: tokenAmount }))
+//     },
+//     [dispatch]
+//   )
+
+//   return [userMaxTokenAmount, setUserMaxTokenAmount]
+// }
+
+export function useUserSwapGasLimit(): [number, (gasLimit: number) => void] {
+  const dispatch = useDispatch<AppDispatch>()
+  const userSwapGasLimit = useSelector<AppState, AppState['user']['userSwapGasLimit']>((state) => {
+    return state.user.userSwapGasLimit
+  })
+
+  const setUserSwapGasLimit = useCallback(
+    (gasLimit: number) => {
+      dispatch(updateUserSwapGasLimit({ userSwapGasLimit: gasLimit }))
+    },
+    [dispatch]
+  )
+
+  return [userSwapGasLimit, setUserSwapGasLimit]
+}
+
+export function useUserLiquidityGasLimit(): [number, (gasLimit: number) => void] {
+  const dispatch = useDispatch<AppDispatch>()
+  const userLiquidityGasLimit = useSelector<AppState, AppState['user']['userLiquidityGasLimit']>((state) => {
+    return state.user.userLiquidityGasLimit
+  })
+
+  const setUserLiquidityGasLimit = useCallback(
+    (gasLimit: number) => {
+      dispatch(updateUserLiquidityGasLimit({ userLiquidityGasLimit: gasLimit }))
+    },
+    [dispatch]
+  )
+
+  return [userLiquidityGasLimit, setUserLiquidityGasLimit]
 }

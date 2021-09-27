@@ -6,6 +6,7 @@ import {
   ROUTER_ADDRESS,
   TradeType,
   Trade as V2Trade,
+  CONVEYOR_V2_ROUTER_ADDRESS,
 } from '@sushiswap/sdk'
 import { useCallback, useMemo } from 'react'
 import { useHasPendingApproval, useTransactionAdder } from '../state/transactions/hooks'
@@ -16,6 +17,8 @@ import { calculateGasMargin } from '../functions/trade'
 import { useActiveWeb3React } from './useActiveWeb3React'
 import { useTokenAllowance } from './useTokenAllowance'
 import { useTokenContract } from './useContract'
+import { useUserConveyorUseRelay } from '../state/user/hooks'
+import useVercelEnvironment from './useNodeEnvironment'
 
 export enum ApprovalState {
   UNKNOWN = 'UNKNOWN',
@@ -110,16 +113,20 @@ export function useApproveCallbackFromTrade(
   doArcher: boolean = false
 ) {
   const { chainId } = useActiveWeb3React()
+  const { deploymentEnv } = useVercelEnvironment()
   const amountToApprove = useMemo(
     () => (trade && trade.inputAmount.currency.isToken ? trade.maximumAmountIn(allowedSlippage) : undefined),
     [trade, allowedSlippage]
   )
+  const [userConveyorUseRelay] = useUserConveyorUseRelay()
   return useApproveCallback(
     amountToApprove,
     chainId
       ? trade instanceof V2Trade
         ? !doArcher
-          ? ROUTER_ADDRESS[chainId]
+          ? !userConveyorUseRelay
+            ? ROUTER_ADDRESS[chainId]
+            : CONVEYOR_V2_ROUTER_ADDRESS[deploymentEnv][chainId]
           : ARCHER_ROUTER_ADDRESS[chainId]
         : undefined
       : undefined

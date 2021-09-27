@@ -1,7 +1,7 @@
-import { ChainId, CurrencyAmount, JSBI, NATIVE, Pair } from '@sushiswap/sdk'
+import { ChainId, CurrencyAmount, JSBI, NATIVE, Pair, WNATIVE_ADDRESS } from '@sushiswap/sdk'
 import React, { useMemo } from 'react'
 import { classNames, currencyId } from '../../../functions'
-import { toV2LiquidityToken, useTrackedTokenPairs } from '../../../state/user/hooks'
+import { toV2LiquidityToken, useTrackedTokenPairs, useUserConveyorUseRelay } from '../../../state/user/hooks'
 
 import Alert from '../../../components/Alert'
 import { BIG_INT_ZERO } from '../../../constants'
@@ -27,6 +27,7 @@ import { useLingui } from '@lingui/react'
 import { useRouter } from 'next/router'
 import { useTokenBalancesWithLoadingIndicator } from '../../../state/wallet/hooks'
 import { useV2Pairs } from '../../../hooks/useV2Pairs'
+import useVercelEnvironment from '../../../hooks/useNodeEnvironment'
 
 export default function Pool() {
   const { i18n } = useLingui()
@@ -35,15 +36,19 @@ export default function Pool() {
 
   const userEthBalance = useETHBalances(account ? [account] : [])?.[account ?? '']
 
+  const [useConveyor] = useUserConveyorUseRelay()
+
+  const { deploymentEnv } = useVercelEnvironment()
+
   // fetch the user's balances of all tracked V2 LP tokens
   const trackedTokenPairs = useTrackedTokenPairs()
   const tokenPairsWithLiquidityTokens = useMemo(
     () =>
       trackedTokenPairs.map((tokens) => ({
-        liquidityToken: toV2LiquidityToken(tokens),
+        liquidityToken: toV2LiquidityToken(tokens, useConveyor, deploymentEnv),
         tokens,
       })),
-    [trackedTokenPairs]
+    [trackedTokenPairs, useConveyor, deploymentEnv]
   )
   const liquidityTokens = useMemo(
     () => tokenPairsWithLiquidityTokens.map((tpwlt) => tpwlt.liquidityToken),
@@ -148,7 +153,9 @@ export default function Pool() {
               id="add-pool-button"
               color="gradient"
               className="grid items-center justify-center grid-flow-col gap-2 whitespace-nowrap"
-              onClick={() => router.push(`/add/${currencyId(NATIVE[chainId])}`)}
+              onClick={() =>
+                router.push(`/add/${!useConveyor ? currencyId(NATIVE[chainId]) : WNATIVE_ADDRESS[chainId]}`)
+              }
             >
               {i18n._(t`Add`)}
             </Button>
