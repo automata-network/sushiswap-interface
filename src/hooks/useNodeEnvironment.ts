@@ -3,7 +3,7 @@ const useVercelEnvironment = () => {
   const deploymentEnv = process.env.NODE_ENV && process.env.NODE_ENV !== 'production' ? 'staging' : 'production'
 
   // TODO Remove 'staging' for deploymentEnv value when production version of Geode is ready
-  return { isProduction, deploymentEnv: 'production' }
+  return { isProduction, deploymentEnv: 'staging' }
 }
 
 export default useVercelEnvironment
